@@ -1,6 +1,6 @@
 ---
 name: Capy Cove
-description: A sunlit low-poly island for two friends
+description: A sunlit low-poly sandbox for two friends
 colors:
   leaf: "#305e43"
   ink: "#264d3b"
@@ -47,9 +47,9 @@ components:
 
 ## Overview
 
-**Creative North Star: "A very good day on a little island."**
+**Creative North Star: "Build a little life together."**
 
-The user's approved cozy, low-poly island is the visual authority. The actual WebGL scene leads; DOM controls sit around it. The visual mode is Experience, not a marketing page. Soft lettering and quiet controls support the faceted trees, capybaras, and lagoon.
+The approved cozy low-poly style remains the visual authority, extended into a seeded sandbox. The supplied top-down 3D reference informs enclosed room framing and architectural depth, not a replacement of the warm Capy Cove palette. The actual WebGL scene leads; DOM controls sit around it. Soft lettering and quiet controls support faceted terrain, capybaras and architecture.
 
 **Key Characteristics:**
 - Living procedural scenery, not a static hero image.
@@ -64,19 +64,19 @@ Leaf carries primary actions; ink carries headings and body text. Paper gives th
 
 ## Typography
 
-Fredoka is the self-hosted display voice at medium weight. Nunito Sans is the self-hosted reading and control face. Headings are rounded and closely spaced without condensed or all-caps treatment. Display headings are roughly twice the size of in-game quest titles. UI labels are compact; body copy is sentence case.
+Fredoka is the self-hosted display voice at medium weight. Nunito Sans is the self-hosted reading and control face. Headings are rounded and closely spaced without condensed or all-caps treatment. Display headings are roughly twice the size of in-game location titles. UI labels are compact; body copy is sentence case.
 
 ## Layout
 
-Desktop setup occupies a narrow left column over a full-bleed island shifted right by the camera. At 760px and below, setup scrolls and the character form becomes a single paper panel below the introduction. Gameplay keeps the viewport fixed, places the quest upper left, map upper right, actions below, and keeps the capybara near the center.
+Desktop setup occupies a paper-backed left column over a full-bleed world shifted right by the camera. At 760px and below, setup scrolls and the character form becomes a paper panel below the introduction. Gameplay keeps the viewport fixed: surroundings upper left, map upper right, sandbox tools and a compact material row below. Craft, Build, Farm and Bag open one nonmodal scrolling drawer. Choosing a blueprint closes the drawer and reveals a foundation preview with a separate confirmation control.
 
 Touch devices get a directional pad. Desktop controls use camera-relative WASD/arrows. Native dialogs handle protected-focus tasks: help, the journal, connection failures, completion, and leaving a live session.
 
 ## Elevation & Depth
 
-The world uses real mesh geometry, directional shadows, ambient light, and a fixed-angle orthographic camera. HUD panels use one shared ambient shadow (`0 12px 36px #2f51351a`), without an additional outline. Controls use borders for selection and field boundaries instead of stacked shadows.
+The world uses real mesh geometry, faceted vertex-colored terrain, directional shadows, hemisphere lighting and a higher-angle orthographic camera. Biomes use meadow, forest, sand, wetland, stone and snow palettes. Architecture has pitched roofs, framing, windows, flower boxes and themed details. Interiors use plank floors, rugs, cutaway walls, door frames, warm local light and modeled furniture with matching collision footprints. HUD panels use one shared ambient shadow (`0 12px 36px #2f51351a`), without an additional outline.
 
-Ambient animation is disabled by reduced-motion preferences. Gameplay motion remains functional. Progress fills use transforms rather than width animation. Camera movement and player interpolation use time-based exponential smoothing.
+Entering a building switches only the local camera to a centered room view against a dark green surround, with a short fade. Side doors connect rooms. Remote players are visible only in the same outdoor or room instance. Reduced-motion preferences disable ambient water, windmill, bite and transition effects. Camera movement and player interpolation use time-based exponential smoothing.
 
 ## Shapes
 
@@ -86,16 +86,18 @@ Controls have modest rounded corners. HUD panels are slightly softer, dialogs so
 
 - **Primary action:** leaf background, light text, clear action wording, optional trailing arrow. Disabled states retain readable text and cannot be activated.
 - **Character selection:** labeled segmented buttons, outlined fur swatches, and accessory buttons. All selected options expose `aria-pressed`.
-- **Quest panel:** a journal control, current objective, shared count, progress fill, and an explicit cooperation hint.
-- **Shared bag:** one compact row of item icons and synchronized counts, not separate personal inventory panels.
-- **Map:** geography matches game coordinates; local and friend dots use distinct fills, while the destination is a diamond. Item locations appear only for the active quest.
+- **Surroundings:** current biome or room name, relevant gathering/door guidance, and the friend’s independent location. No quest or completion UI.
+- **Shared bag:** synchronized materials, with four quick counts and the full material list in Bag. Tools are personal and explicitly labeled.
+- **Recipes:** flat, separated rows with names, useful effects, material costs, prerequisites and owned/unavailable states. No nested cards.
+- **Building preview:** a green or terracotta foundation, plus a textual placement reason and host-validated confirmation. Color is never the only validity signal.
+- **Map:** cached seed-derived biome geography outdoors; footprint-aligned furniture and doorways indoors. Only players in the same interior instance appear on its room map.
 - **Interaction prompt:** action text is computed from authoritative proximity. An unavailable prompt is disabled, not a misleading clickable action.
 - **Dialogs:** native modal focus, Escape dismissal, a visible close button, and clear primary/secondary choices.
 - **Icons:** selected Lucide line icons, with small authored geometric capybara, orange, and stone marks. No emoji icon substitutions.
 
 ## Do's and Don'ts
 
-- **Do** keep the island visible and the current cooperative goal legible.
+- **Do** keep the world visible and the next available interaction legible.
 - **Do** show actual connection state and explain how to recover.
 - **Do** preserve equal abilities across gender and cosmetic choices.
 - **Do** use the existing outline focus treatment for all keyboard controls.

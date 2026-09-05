@@ -12,6 +12,8 @@ export class InputController {
     window.addEventListener('keydown', event => {
       if (!this.active || this.editing() || event.ctrlKey || event.metaKey || event.altKey) return;
       const key = event.key.toLowerCase();
+      // Space must retain native activation for keyboard-focused UI controls.
+      if (key === ' ' && /^(BUTTON|A)$/.test(document.activeElement?.tagName || '')) return;
       if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'e', 'h', ' '].includes(key)) event.preventDefault();
       this.keys.add(key);
       this.onMove?.(this.read());

@@ -1,63 +1,32 @@
-# Release verification
+# Sandbox implementation status
 
-## Automated verification
+## Verification boundary
 
-- `npm run check`: ESLint, 18 unit tests, strict TypeScript checking, and production build pass.
-- `npm run test:e2e`: all three browser scenarios pass using two actual WebRTC peers and a local PeerJS signaling server.
-- The long browser scenario collects and uses all required items, requires both player contributions, and reaches the completion dialog on both peers. Movement goes through the input handler, not teleportation or state injection.
-- The other scenarios cover selection, readiness, shared spawn and pickups, movement, a third-player rejection, guest departure, host pause, guest reconnection with preserved progress, mobile pointer controls, keyboard help dismissal, and horizontal overflow.
-- A separate production-bundle smoke test passed with the public PeerJS service and a synchronized pickup, not the local test signaling server.
-- `npm audit`: no reported vulnerabilities in the installed dependency tree at release verification time.
+The user explicitly requested that no further tests be run and that the code be pushed when complete.
 
-### Defects found and resolved
+- Before that instruction, the original game's two `tests/multiplayer.e2e.ts` scenarios passed. They describe the pre-sandbox baseline, not this implementation.
+- `npm run lint`, `npm run build` (TypeScript and Vite) and `git diff --check` passed. None executes tests.
+- The static design detector reported 158 advisory token/ramp mismatches against existing design metadata, with no non-advisory findings. The generated design sidecar was already stale and was not manually modified.
+- Sandbox unit and E2E scenarios were updated in source, but were **not executed** for this change.
+- No post-change browser walkthrough or visual screenshot review was performed. There is no claim that the new multiplayer flow, room visuals, mobile layout or performance passed runtime QA.
 
-1. Fixed-step ticks previously slowed the simulation under rendering stalls. A bounded accumulator now runs the necessary fixed steps.
-2. Guest browsers could receive a lobby snapshot before their handshake added the guest player. The host now waits for the handshake, and the guest rejects snapshots without its slot.
-3. Distinct Three.js `Color` instances collided in the material cache. Cache keys now use color values; a regression test covers shared and distinct colors.
-4. Static scenery generated unnecessary draw calls. Immutable meshes now batch by material without swallowing animated/reward subtrees. Sustained slow frames also trigger lower canvas resolution and smaller shadow maps.
-5. The design detector found a progress-width animation. It was replaced with a transform-based fill.
-6. Browser tests originally overshot targets through automation round-trip latency. Full-adventure steering now runs through DOM keyboard events in the page and waits for a settled stop, while the shorter scenario separately verifies real Playwright keyboard/pointer input.
-7. The first GitHub run exposed software-GPU timing flakiness. Static shadows are now cached instead of regenerated every frame, input changes send immediately, and CI renders at half device-pixel ratio while preserving CSS viewport sizes and all gameplay assertions. Automatic retries are disabled, flaky results fail, and test budgets account for software rendering. The updated suite passes locally in CI mode.
+Existing CI remains configured. A successful push is not evidence that CI or GitHub Pages deployment succeeded.
 
-## Finish review
+## Coverage authored, not executed
 
-Review performed inline because this harness did not expose an independent reviewer/subagent tool. No generated reference comp was supplied; the user's approved cozy low-poly island direction and the implemented page are the visual authority. The approved skill update replaced its old concept-seed script, so no random direction seed is claimed.
+`tests/game.test.ts` describes renewable gathering, tool costs and prerequisites, movement/collision, construction costs and spacing, independent room transitions, furniture collision, occupied-building protection, refunds, crop growth and seed returns, timed fishing, pearls, disconnect pause, seeded content and versioned protocol rejection.
 
-**Disposition: ship.** This is a review of the specified friends-only, session-based game, not a claim of universal connectivity or complete nonvisual accessibility.
+`tests/adventure.e2e.ts` describes two real peers building a home, crafting a hoe, planting and harvesting, entering separate rooms, and remaining independently indoors/outdoors. It uses keyboard input rather than a teleport/debug hook. The multiplayer suite retains character selection, readiness, pickup synchronization, third-player rejection, disconnect/rejoin and touch controls.
 
-### Persistence
+## Scope and known limits
 
-Pass: `PRODUCT.md` records approved scope and `DESIGN.md` documents the built world. The design contract is retained in the production HTML. Source, tests, networking limitations, deployment instructions, and third-party notices are documented.
+- This is a finite, seeded 256 × 256 world, not infinite chunk streaming or a voxel destruction/building system.
+- Twenty building types have three themed rooms each, except the four-room inn. Furniture is modeled scenery with collision; furniture placement and production automation are not implemented.
+- Crop watering is automatic. Crops and fish are collectible inventory outputs; there is no hunger, cooking or survival system.
+- Resource nodes regenerate, tools do not break, seeds reproduce, and fishing needs no bait. Storage is capped at 9,999 of each item; sessions are capped at 100 buildings and 200 crops.
+- The host tab owns the world. There is no disk save, host migration, backend persistence or provisioned TURN service. Guest disconnects pause simulation.
+- The 3D game remains spatial/visual. Accessible HTML controls do not make this fully screen-reader-playable gameplay.
 
-### Fidelity
+## Screenshots
 
-| Element | Verdict | Evidence |
-| --- | --- | --- |
-| Type | Match | Self-hosted Fredoka display and Nunito Sans controls maintain the storybook voice. |
-| Material | Match | The full-bleed island and capybaras are real playable low-poly meshes. |
-| Ground | Match | Leaf greens, lagoon water, pale sand, and honey-colored characters carry the approved scene. |
-| First viewport | Match | Left-side character setup and an open live diorama on desktop. |
-| Mobile layout | Adaptation | Setup scrolls in a paper panel; gameplay stays fixed with a thumb-accessible pad and action button. |
-| Cooperative progression | Match | Both peers visibly share the objective, backpack, and three-quest completion. |
-
-### Ceiling
-
-The implementation uses the requested 3D medium directly: faceted scenery, shadows, animated capybaras, swimming, butterflies, bobbing pickups, and persistent quest rewards. Mobile HUD labels are compact; the game still fundamentally requires visual/spatial play. No full screen-reader gameplay claim is made.
-
-### Material fixes
-
-Clear for this release. The detector's single mechanical finding is resolved. Third-party signaling availability, restrictive-network TURN needs, and host-tab lifecycle are documented operational constraints, not hidden promises.
-
-### Keep
-
-Keep the procedural world, simple two-person joining flow, readable shared goal, and equal character abilities. Do not dilute them with marketing chrome or move game authority into UI/rendering code.
-
-## Captures
-
-- `screenshots/setup-desktop.png`: 1440 × 900 setup.
-- `screenshots/setup-mobile.png`: 390px mobile setup, full-page capture.
-- `screenshots/game-desktop.png`: shared-spawn gameplay.
-- `screenshots/game-mobile.png`: 390 × 844 touch gameplay.
-- `screenshots/adventure-complete.png`: full-adventure completion reached by both players.
-
-Browser screenshots and traces are produced by local E2E verification. These checked-in captures record the initial release, not a promise that every future commit has the same pixels.
+Files under `docs/screenshots/` are historical captures of the original quest-based release. They are not current sandbox screenshots and are no longer used as a current README preview.

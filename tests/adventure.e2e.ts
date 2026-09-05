@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { ITEMS, QUESTS } from '../src/game/content';
+import { CROP_SECONDS } from '../src/game/content';
 
 /** Exercise DOM keyboard controls, not a state/teleport test hook. In-page steering avoids
  * automation round-trip latency overshooting targets on CI's software WebGL renderer. */
@@ -36,8 +36,8 @@ async function walkTo(page: Page, id: 'p1' | 'p2', target: { x: number; z: numbe
   await page.waitForTimeout(200);
 }
 
-test('two friends complete all three quests through real movement and interaction', async ({ browser }) => {
-  test.setTimeout(300000);
+test('two friends build, explore independent rooms, and grow renewable crops', async ({ browser }) => {
+  test.setTimeout(240000);
   // A small viewport reduces software-renderer load without changing game rules.
   const hostContext = await browser.newContext({ viewport: { width: 960, height: 720 }, deviceScaleFactor: process.env.CI ? 0.5 : 1 });
   const guestContext = await browser.newContext({ viewport: { width: 960, height: 720 }, deviceScaleFactor: process.env.CI ? 0.5 : 1 });
@@ -54,29 +54,46 @@ test('two friends complete all three quests through real movement and interactio
   await guest.getByRole('button', { name: 'I’m ready to explore' }).click();
   await host.getByRole('button', { name: 'I’m ready to explore' }).click();
   await expect(host.locator('#label-p1')).toBeVisible();
-  for (const [index, quest] of QUESTS.entries()) {
-    const items = ITEMS.filter(i => i.kind === quest.kind).slice(0, quest.amount);
-    for (const [i, item] of items.entries()) {
-      const page = i % 2 === 0 ? host : guest, id = i % 2 === 0 ? 'p1' : 'p2';
-      await walkTo(page, id, item);
-      await expect(page.locator('#interact-button')).toBeEnabled();
-      await page.keyboard.press('e');
-      await expect(host.locator(`#bag-${quest.kind}`)).toHaveText(String(i + 1));
-      await expect(guest.locator(`#bag-${quest.kind}`)).toHaveText(String(i + 1));
-    }
-    await walkTo(host, 'p1', quest); await walkTo(guest, 'p2', quest);
-    await host.keyboard.press('e');
-    await expect(host.locator('#quest-hint')).toContainText('Your part is done');
-    await guest.keyboard.press('e');
-    const nextTitle = QUESTS[index + 1]?.title || 'A very good day.';
-    await expect(host.getByRole('heading', { name: nextTitle, exact: true })).toBeVisible();
-    await expect(guest.getByRole('heading', { name: nextTitle, exact: true })).toBeVisible();
-  }
-  await expect(host.getByRole('dialog', { name: 'Adventure complete' })).toBeVisible();
-  await expect(guest.getByRole('dialog', { name: 'Adventure complete' })).toBeVisible();
-  await host.screenshot({ path: 'test-results/adventure-complete.png' });
-  await host.getByRole('button', { name: 'Stay a little longer' }).click();
-  await host.getByRole('button', { name: 'Island journal' }).click();
-  await expect(host.locator('.journal-list .done')).toHaveCount(3);
+  await host.locator('[data-panel="build"]').click();
+  await expect(host.locator('[data-blueprint]')).toHaveCount(20);
+  await host.locator('[data-blueprint="home"]').click();
+  await expect(host.getByRole('button', { name: 'Place building', exact: true })).toBeEnabled();
+  await host.getByRole('button', { name: 'Place building', exact: true }).click();
+  await expect(host.locator('#bag-wood')).toHaveText('4');
+  await expect(guest.locator('#bag-wood')).toHaveText('4');
+  await guest.locator('[data-panel="craft"]').click();
+  await guest.getByRole('button', { name: 'Craft garden hoe', exact: true }).click();
+  await expect(guest.locator('#bag-wood')).toHaveText('1');
+  await guest.getByRole('button', { name: 'Close sandbox menu' }).click();
+  await guest.locator('[data-panel="farm"]').click();
+  await guest.getByRole('button', { name: 'Plant wheat', exact: true }).click();
+  await expect(host.locator('#bag-seed')).toHaveText('5');
+  const plantedAt = Date.now();
+  await walkTo(host, 'p1', { x: -2, z: 4.5 });
+  await expect(host.locator('#interact-label')).toHaveText('Enter home house');
+  await host.keyboard.press('e');
+  await expect(host.getByRole('heading', { name: 'Living room', exact: true })).toBeVisible();
+  await expect(guest.locator('#label-p1')).toHaveAttribute('data-location', 'building-0:0');
+  await expect(guest.locator('#label-p2')).toHaveAttribute('data-location', 'outside');
+  await walkTo(host, 'p1', { x: 0, z: 0 });
+  await walkTo(host, 'p1', { x: 4.8, z: 0 });
+  await expect(host.locator('#interact-label')).toHaveText('Enter kitchen');
+  await host.keyboard.press('e');
+  await expect(host.getByRole('heading', { name: 'Kitchen', exact: true })).toBeVisible();
+  await host.screenshot({ path: 'test-results/sandbox-interior.png' });
+  await expect(guest.locator('#friend-location')).toContainText('inside home house');
+  await guest.waitForTimeout(Math.max(0, CROP_SECONDS * 1000 + 1500 - (Date.now() - plantedAt)));
+  await walkTo(guest, 'p2', { x: 2, z: 10 });
+  await expect(guest.locator('#interact-label')).toHaveText('Harvest wheat');
+  await guest.keyboard.press('e');
+  await expect(host.locator('#bag-seed')).toHaveText('7');
+  await expect(guest.locator('#bag-seed')).toHaveText('7');
+  await guest.locator('[data-panel="bag"]').click();
+  await expect(guest.locator('#stock-wheat')).toHaveText('3');
+  await guest.getByRole('button', { name: 'Close sandbox menu' }).click();
+  await walkTo(host, 'p1', { x: 0, z: 4 });
+  await host.keyboard.press('e');
+  await expect(host.locator('#label-p1')).toHaveAttribute('data-location', 'outside');
+  await host.screenshot({ path: 'test-results/sandbox-outdoors.png' });
   await hostContext.close(); await guestContext.close();
 });

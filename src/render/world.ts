@@ -1,174 +1,221 @@
 import * as THREE from 'three';
-import { ITEMS, QUESTS, riverX } from '../game/content';
+import { ITEM_COLORS, buildingDefinition, roomFurniture, type BuildingDefinition, type Furniture, type RoomDefinition } from '../game/content';
+import { BIOMES, biomeAt, generateWorld, randomGenerator, riverX, terrainHeight, waterHeight, type WorldItem } from '../game/geography';
+import type { Building } from '../game/schema';
 import { block, material } from './capybara';
 import { batchStaticMeshes } from './batching';
+export { randomGenerator } from '../game/geography';
 
-export function randomGenerator(seed: number): () => number {
-  return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const coneGeometry = new THREE.ConeGeometry(1, 1, 7);
+const cylinderGeometry = new THREE.CylinderGeometry(1, 1, 1, 8);
+const ringGeometry = new THREE.RingGeometry(0.65, 0.7, 24);
+const ringMaterial = new THREE.MeshBasicMaterial({ color: '#fff0bb', side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+function cylinder(parent: THREE.Object3D, color: string, x: number, y: number, z: number, radius: number, height: number): THREE.Mesh {
+  const mesh = new THREE.Mesh(cylinderGeometry, material(color)); mesh.position.set(x, y, z); mesh.scale.set(radius, height, radius); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
 }
-function cylinder(parent: THREE.Object3D, color: string, top: number, bottom: number, height: number, x: number, y: number, z: number, sides = 8): THREE.Mesh {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(top, bottom, height, sides), material(color));
-  mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+function cone(parent: THREE.Object3D, color: string, x: number, y: number, z: number, radius: number, height: number): THREE.Mesh {
+  const mesh = new THREE.Mesh(coneGeometry, material(color)); mesh.position.set(x, y, z); mesh.scale.set(radius, height, radius); mesh.castShadow = true; parent.add(mesh); return mesh;
 }
-function textSign(parent: THREE.Object3D, text: string, x: number, z: number, color = '#385b3e'): void {
-  const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#f5e4b9'; ctx.fillRect(0, 0, 512, 128);
-  ctx.strokeStyle = '#c0a77a'; ctx.lineWidth = 10; ctx.strokeRect(6, 6, 500, 116);
-  ctx.font = '600 44px "Fredoka", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = color; ctx.fillText(text, 256, 65);
+function sign(parent: THREE.Object3D, text: string, x: number, y: number, z: number, width = 3.4): void {
+  const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 96;
+  const ctx = canvas.getContext('2d')!; ctx.fillStyle = '#efe0bc'; ctx.fillRect(0, 0, 512, 96);
+  ctx.font = '500 38px Fredoka'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3d5847'; ctx.fillText(text, 256, 49, 480);
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.9, 0.15), [material('#ab885b'), material('#ab885b'), material('#ab885b'), material('#ab885b'), new THREE.MeshStandardMaterial({ map: texture, roughness: 1 }), material('#ab885b')]);
-  sign.position.set(x, 1.65, z); parent.add(sign);
-  block(parent, '#9f7950', [x - 1.2, 0.75, z], [0.14, 1.6, 0.14]);
-  block(parent, '#9f7950', [x + 1.2, 0.75, z], [0.14, 1.6, 0.14]);
+  const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 1 }); mat.userData.owned = true;
+  const geo = new THREE.PlaneGeometry(width, width * 96 / 512); geo.userData.owned = true;
+  const mesh = new THREE.Mesh(geo, mat); mesh.position.set(x, y, z); parent.add(mesh);
 }
-function tree(parent: THREE.Object3D, x: number, z: number, scale: number, variant: number): void {
-  const group = new THREE.Group(); group.position.set(x, 0, z); group.scale.setScalar(scale); parent.add(group);
-  cylinder(group, '#8d7050', 0.16, 0.27, 2.5, 0, 1.15, 0, 5);
-  const branch = block(group, '#8d7050', [0.42, 1.75, 0], [0.16, 1.35, 0.16]); branch.rotation.z = -0.65;
-  const shades = variant % 3 === 0 ? ['#e4ba64', '#eece7c', '#c9ae59'] : ['#68974f', '#87ae5c', '#a4be68'];
-  block(group, shades[0], [0, 3.05, 0], [1.9, 2, 1.65], true);
-  block(group, shades[1], [-0.85, 2.85, 0.2], [1.5, 1.55, 1.4], true);
-  block(group, shades[2], [1, 2.9, 0], [1.25, 1.35, 1.2], true);
-  if (variant % 3 !== 0) {
-    for (const [ox, oy, oz] of [[-1, 2.6, 1], [0.7, 2.8, 1.2], [0.2, 2.15, 0.8]]) block(group, '#f4b044', [ox, oy, oz], [0.23, 0.24, 0.23], true);
+function tree(parent: THREE.Group, biome: string, variant: number): void {
+  cylinder(parent, '#836c4b', 0, 1.1, 0, 0.23, 2.4);
+  if (biome === 'snow' || biome === 'highland') {
+    for (let i = 0; i < 3; i++) cone(parent, biome === 'snow' ? ['#6b877b', '#cad8cb', '#e2e8db'][i] : ['#567d63', '#64896a', '#779772'][i], 0, 2 + i * 0.8, 0, 1.65 - i * 0.4, 2.4);
+  } else {
+    const colors = biome === 'forest' ? ['#557c55', '#6e955d', '#89a66c'] : ['#83a363', '#a1b474', '#b5c389'];
+    block(parent, colors[0], [0, 3, 0], [1.8, 1.6, 1.65], true);
+    block(parent, colors[1], [-0.9, 2.8, 0.3], [1.35, 1.25, 1.4], true);
+    block(parent, colors[2], [0.8, 3.4, -0.2], [1.45, 1.4, 1.4], true);
+    if (variant % 3 === 0) for (const x of [-0.9, 0.1, 0.8]) block(parent, '#eab559', [x, 2.4, 1.1], [0.21, 0.23, 0.21], true);
   }
 }
-export interface WorldScene {
-  group: THREE.Group; items: Map<string, THREE.Group>; questMarkers: THREE.Group[];
-  flowers: THREE.Group; picnic: THREE.Group; steam: THREE.Group;
-  water: THREE.Mesh; butterflies: THREE.Group[];
-}
-export function createWorld(): WorldScene {
-  const group = new THREE.Group();
-  const random = randomGenerator(7241);
-  // Faceted banks and a pale sandy rim keep the island legible from above.
-  const lower = cylinder(group, '#c7af75', 25.9, 24.3, 2.4, 0, -1.8, 0, 48); lower.scale.z = 0.9;
-  const beach = cylinder(group, '#e9d39a', 25.2, 26.3, 0.7, 0, -0.5, 0, 48); beach.scale.z = 0.9;
-  const land = cylinder(group, '#a9bd73', 24.3, 25.3, 0.4, 0, -0.18, 0, 48); land.scale.z = 0.9;
-  // Hand-colored triangulated meadow instead of a texture-dependent flat plane.
-  const grid = new THREE.PlaneGeometry(48, 43.2, 24, 24);
-  grid.rotateX(-Math.PI / 2);
-  const gridPositions = grid.getAttribute('position');
-  for (let i = 0; i < gridPositions.count; i++) {
-    gridPositions.setX(i, gridPositions.getX(i) + (random() - 0.5) * 0.8);
-    gridPositions.setZ(i, gridPositions.getZ(i) + (random() - 0.5) * 0.8);
+function resource(node: WorldItem, seed: number, index: number): THREE.Group {
+  const object = new THREE.Group(); const biome = biomeAt(node.x, node.z, seed);
+  if (node.kind === 'wood') tree(object, biome, index);
+  else if (['stone', 'iron', 'copper', 'crystal'].includes(node.kind)) {
+    block(object, biome === 'desert' ? '#aa9674' : '#89968b', [0, 0.4, 0], [0.95, 0.75, 0.85], true);
+    if (node.kind !== 'stone') for (let i = 0; i < 4; i++) {
+      const part = block(object, ITEM_COLORS[node.kind], [Math.sin(i * 2) * 0.45, 0.75, Math.cos(i * 2) * 0.4], [0.23, node.kind === 'crystal' ? 0.7 : 0.25, 0.25], node.kind !== 'crystal'); part.rotation.z = i * 0.23;
+    }
+  } else if (node.kind === 'fiber' || node.kind === 'seed') {
+    for (let i = 0; i < 5; i++) { const x = Math.sin(i * 3) * 0.35, z = Math.cos(i * 3) * 0.35;
+      cone(object, '#739161', x, 0.48, z, 0.18, 0.9);
+      if (node.kind === 'seed') block(object, '#e8cf86', [x, 0.84, z], [0.12, 0.18, 0.12], true);
+    }
+  } else if (node.kind === 'orange') {
+    for (let i = 0; i < 3; i++) block(object, ITEM_COLORS.orange, [(i - 1) * 0.3, 0.26, i % 2 * 0.3], [0.27, 0.26, 0.27], true);
+    block(object, '#628853', [0.15, 0.48, 0.2], [0.3, 0.05, 0.12]);
+  } else {
+    block(object, ITEM_COLORS[node.kind], [0, 0.16, 0], [0.95, 0.25, 0.8], true);
+    block(object, ITEM_COLORS[node.kind], [0.4, 0.28, 0.2], [0.45, 0.3, 0.4], true);
   }
-  const triangles = grid.toNonIndexed();
-  const pos = triangles.getAttribute('position');
+  batchStaticMeshes(object, new Set());
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.06; ring.name = 'resource-ring'; object.add(ring);
+  object.position.set(node.x, terrainHeight(node.x, node.z, seed), node.z); return object;
+}
+export interface WorldScene { group: THREE.Group; items: Map<string, THREE.Group>; water: THREE.Mesh; foam: THREE.InstancedMesh }
+export function createWorld(seed = 7241): WorldScene {
+  const group = new THREE.Group(), items = new Map<string, THREE.Group>(), random = randomGenerator(seed);
   const vertices: number[] = [], colors: number[] = [];
-  for (let i = 0; i < pos.count; i += 3) {
-    if ([0, 1, 2].some(j => Math.hypot(pos.getX(i + j), pos.getZ(i + j) / 0.9) > 24.2)) continue;
-    const color = new THREE.Color(['#a9bd73', '#abbe76', '#a8bb72', '#adbf78'][Math.floor(random() * 4)]);
-    for (let j = 0; j < 3; j++) { vertices.push(pos.getX(i + j), 0, pos.getZ(i + j)); colors.push(color.r, color.g, color.b); }
+  for (let x = -128; x < 128; x += 2) for (let z = -128; z < 128; z += 2) {
+    const points = [[x, z], [x, z + 2], [x + 2, z], [x + 2, z], [x, z + 2], [x + 2, z + 2]];
+    for (let t = 0; t < 2; t++) {
+      const color = new THREE.Color(BIOMES[biomeAt(x + 1, z + 1, seed)].color).multiplyScalar(0.97 + random() * 0.06);
+      for (const [px, pz] of points.slice(t * 3, t * 3 + 3)) { vertices.push(px, terrainHeight(px, pz, seed), pz); colors.push(color.r, color.g, color.b); }
+    }
   }
-  const terrain = new THREE.BufferGeometry();
-  terrain.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  terrain.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  terrain.computeVertexNormals(); grid.dispose(); triangles.dispose();
-  const meadow = new THREE.Mesh(terrain, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })); meadow.position.y = 0.035; meadow.receiveShadow = true; group.add(meadow);
-
+  const geometry = new THREE.BufferGeometry(); geometry.userData.owned = true;
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); geometry.computeVertexNormals();
+  const landMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true }); landMat.userData.owned = true;
+  const land = new THREE.Mesh(geometry, landMat); land.receiveShadow = true; group.add(land);
   const waterVertices: number[] = [];
-  for (let z = -19; z < 19; z += 1) {
-    const x1 = riverX(z), x2 = riverX(z + 1), w = 1.65;
-    waterVertices.push(x1 - w, 0.055, z, x1 + w, 0.055, z, x2 + w, 0.055, z + 1, x1 - w, 0.055, z, x2 + w, 0.055, z + 1, x2 - w, 0.055, z + 1);
+  for (let z = -128; z < 128; z++) {
+    const x1 = riverX(z, seed), x2 = riverX(z + 1, seed), y1 = waterHeight(z, seed), y2 = waterHeight(z + 1, seed);
+    waterVertices.push(x1 - 2.8, y1, z, x2 - 2.8, y2, z + 1, x1 + 2.8, y1, z, x1 + 2.8, y1, z, x2 - 2.8, y2, z + 1, x2 + 2.8, y2, z + 1);
   }
-  const waterGeo = new THREE.BufferGeometry(); waterGeo.setAttribute('position', new THREE.Float32BufferAttribute(waterVertices, 3)); waterGeo.computeVertexNormals();
-  const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ color: '#70bcb0', roughness: 0.4, side: THREE.DoubleSide })); group.add(water);
-  for (const z of [5, -12]) {
-    const x = riverX(z);
-    for (let i = 0; i < 11; i++) block(group, i % 2 ? '#c9a36a' : '#d9b681', [x - 2.5 + i * 0.5, 0.19, z], [0.45, 0.2, 2.4]);
+  const waterGeo = new THREE.BufferGeometry(); waterGeo.userData.owned = true; waterGeo.setAttribute('position', new THREE.Float32BufferAttribute(waterVertices, 3)); waterGeo.computeVertexNormals();
+  const waterMat = new THREE.MeshStandardMaterial({ color: '#68a8a4', roughness: 0.22, metalness: 0.18, side: THREE.DoubleSide }); waterMat.userData.owned = true;
+  const water = new THREE.Mesh(waterGeo, waterMat); group.add(water);
+  const foamGeo = new THREE.PlaneGeometry(0.65, 0.1); foamGeo.userData.owned = true;
+  const foamMat = new THREE.MeshBasicMaterial({ color: '#e8eee0', transparent: true, opacity: 0.55, side: THREE.DoubleSide }); foamMat.userData.owned = true;
+  const foam = new THREE.InstancedMesh(foamGeo, foamMat, 200); const dummy = new THREE.Object3D();
+  for (let i = 0; i < 200; i++) { const z = -126 + random() * 252, x = riverX(z, seed) + (random() - 0.5) * 4.4;
+    dummy.position.set(x, waterHeight(z, seed) + 0.05, z); dummy.rotation.x = -Math.PI / 2; dummy.updateMatrix(); foam.setMatrixAt(i, dummy.matrix);
+  }
+  group.add(foam);
+  generateWorld(seed).items.forEach((node, i) => { const object = resource(node, seed, i); object.visible = Math.hypot(node.x, node.z) < 58; object.getObjectByName('resource-ring')!.visible = false; items.set(node.id, object); group.add(object); });
+  // Instanced biome-appropriate understory, with per-instance palettes and terrain heights.
+  const grass = new THREE.InstancedMesh(coneGeometry, material('#ffffff'), 4500);
+  for (let i = 0; i < 4500; i++) {
+    const x = (random() - 0.5) * 250, z = (random() - 0.5) * 250, biome = biomeAt(x, z, seed);
+    const river = Math.abs(x - riverX(z, seed)) < 3.2;
+    dummy.position.set(x, terrainHeight(x, z, seed) + 0.17, z); dummy.scale.set(0.08, river ? 0 : biome === 'wetland' ? 0.85 : 0.35, 0.08); dummy.rotation.set(0, random() * 6, 0.1); dummy.updateMatrix(); grass.setMatrixAt(i, dummy.matrix);
+    grass.setColorAt(i, new THREE.Color(biome === 'desert' ? '#bd9c60' : biome === 'snow' ? '#afc1b1' : '#7d985f'));
+  }
+  group.add(grass);
+  // River cascades follow the real northern terrace rather than a disconnected backdrop.
+  const cascadeX = riverX(-55.5, seed), cascadeTop = waterHeight(-57, seed), cascadeBottom = waterHeight(-54, seed);
+  const cascade = block(group, '#b5dcd0', [cascadeX, (cascadeTop + cascadeBottom) / 2, -55], [5.1, Math.max(0.2, cascadeTop - cascadeBottom), 0.2]);
+  cascade.castShadow = false;
+  for (let i = 0; i < 8; i++) block(group, '#dceade', [cascadeX - 2.4 + i * 0.7, cascadeBottom + 0.22, -53.6], [0.7, 0.18, 0.45], true);
+  return { group, items, water, foam };
+}
+function windowFrame(group: THREE.Group, x: number, y: number, z: number): void {
+  block(group, '#f2cc84', [x, y, z], [1.1, 1.1, 0.08]);
+  for (const dx of [-0.65, 0.65]) block(group, '#6c826d', [x + dx, y, z + 0.04], [0.3, 1.35, 0.12]);
+  block(group, '#eee0bd', [x, y, z + 0.08], [0.08, 1.2, 0.12]); block(group, '#eee0bd', [x, y, z + 0.08], [1.2, 0.08, 0.12]);
+  block(group, '#968062', [x, y - 0.7, z + 0.2], [1.7, 0.22, 0.42]);
+  for (const dx of [-0.5, 0, 0.5]) block(group, '#7b995f', [x + dx, y - 0.54, z + 0.2], [0.25, 0.3, 0.23], true);
+}
+export function createBuilding(building: Building, seed: number): THREE.Group {
+  const def = buildingDefinition(building.kind), group = new THREE.Group();
+  block(group, '#a49c85', [0, 0.12, 0], [8.2, 0.5, 6.2]);
+  block(group, def.color, [0, 1.85, 0], [7.8, 3.2, 5.8]);
+  for (const x of [-3.8, 3.8]) for (const z of [-2.8, 2.8]) block(group, '#8b755a', [x, 1.9, z], [0.2, 3.4, 0.22]);
+  block(group, '#866749', [0, 1.27, 2.97], [1.4, 2.3, 0.14]);
+  block(group, '#e4c886', [0.46, 1.3, 3.08], [0.1, 0.1, 0.12], true);
+  block(group, '#d8c59f', [0, 0.12, 3.45], [2.1, 0.2, 1.1]);
+  windowFrame(group, -2.25, 2, 2.98); windowFrame(group, 2.25, 2, 2.98);
+  if (def.style === 'tower') {
+    cylinder(group, def.color, 0, 4, -0.7, 2.2, 2.2); cone(group, def.roof, 0, 5.9, -0.7, 2.9, 2.1);
+    for (const x of [-2.3, 2.3]) { const roof = block(group, def.roof, [x, 3.6, 0], [3.5, 0.3, 6.5]); roof.rotation.z = x < 0 ? 0.18 : -0.18; }
+  } else {
+    const pitch = def.style === 'barn' ? 0.7 : def.style === 'pagoda' ? 0.25 : 0.48;
+    const gableGeometry = new THREE.BufferGeometry();
+    gableGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+      -3.9, 3.35, 2.91, 3.9, 3.35, 2.91, 0, 4.15 + Math.tan(pitch) * 2, 2.91,
+      3.9, 3.35, -2.91, -3.9, 3.35, -2.91, 0, 4.15 + Math.tan(pitch) * 2, -2.91,
+    ], 3));
+    gableGeometry.computeVertexNormals(); gableGeometry.userData.owned = true;
+    const gable = new THREE.Mesh(gableGeometry, material(def.color)); gable.castShadow = true; group.add(gable);
     for (const side of [-1, 1]) {
-      block(group, '#987451', [x, 1.05, z + side * 1.1], [5.6, 0.12, 0.12]);
-      for (const end of [-1, 1]) block(group, '#987451', [x + end * 2.5, 0.68, z + side * 1.1], [0.16, 1.3, 0.16]);
+      const roof = block(group, def.roof, [side * 2, 4.15, 0], [4.65, 0.25, 6.65]); roof.rotation.z = -side * pitch;
+      for (let i = 0; i < 7; i++) { const seam = block(group, new THREE.Color(def.roof).multiplyScalar(0.86), [side * 2, 4.29, -2.7 + i * 0.9], [4.65, 0.07, 0.06]); seam.rotation.z = -side * pitch; }
     }
+    if (def.style === 'pagoda') { block(group, def.roof, [0, 5, 0], [4.6, 0.22, 4]); cone(group, def.roof, 0, 5.7, 0, 2.4, 1.1); }
   }
-  // A path that follows the adventure, laid in irregular meadow stones.
-  for (let i = 0; i < 40; i++) {
-    const t = i / 39, z = 9 - t * 23, x = Math.sin(t * Math.PI * 2) * 4;
-    const p = block(group, i % 3 === 0 ? '#d6cd9c' : '#c7c58d', [x + (random() - 0.5), 0.066, z], [0.55 + random() * 0.6, 0.035, 0.4 + random() * 0.4], true); p.rotation.y = random() * 6;
+  if (def.style === 'glass') {
+    for (const x of [-3, -1.5, 1.5, 3]) block(group, '#d1e5d5', [x, 2.7, 3.01], [0.95, 0.95, 0.07]);
+    for (const x of [-3.7, 3.7]) block(group, '#89b7a7', [x, 1.8, 0], [0.25, 2.4, 4.8]);
   }
-  const treeLocations = [[-18, 6], [-17, -1], [-17, -7], [-12, -14], [-8, -18], [0, -21], [10, -17], [17, -11], [20, -4], [21, 3], [17, 10], [11, 16], [5, 18], [-5, 17], [-12, 14], [-19, 0], [-21, -3], [-14, -5], [-9, -6], [7, 1], [9, 10], [-15, 8], [-3, -9], [9, -12], [-19, 10]];
-  treeLocations.forEach(([x, z], i) => tree(group, x, z, 0.75 + random() * 0.5, i));
-  // Instanced vegetation keeps the rich scene inexpensive on mobile GPUs.
-  const stemGeo = new THREE.ConeGeometry(0.08, 0.4, 3);
-  const grass = new THREE.InstancedMesh(stemGeo, material('#7b9c5b'), 650);
-  const blossom = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.105, 0), material('#f7e4aa'), 220);
-  const dummy = new THREE.Object3D();
-  for (let i = 0; i < 650; i++) {
-    const a = random() * Math.PI * 2, radius = Math.sqrt(random()) * 23;
-    let x = Math.cos(a) * radius, z = Math.sin(a) * radius * 0.9;
-    if (Math.abs(x - riverX(z)) < 2.2) { x = -x; z *= 0.9; }
-    dummy.position.set(x, 0.18, z); dummy.rotation.set(0, random() * 6, (random() - 0.5) * 0.4); dummy.scale.setScalar(0.7 + random()); dummy.updateMatrix(); grass.setMatrixAt(i, dummy.matrix);
-    if (i < 220) { dummy.position.y = 0.35; dummy.updateMatrix(); blossom.setMatrixAt(i, dummy.matrix); }
+  if (def.style === 'dock') {
+    for (let i = 0; i < 7; i++) block(group, i % 2 ? '#b19870' : '#c3ad84', [-5, 0.3, -2.7 + i * 0.9], [2, 0.18, 0.85]);
+    for (const z of [-2.7, 2.7]) cylinder(group, '#826c4c', -5.7, 0.5, z, 0.16, 1.7);
+    cylinder(group, '#9a7853', -4.8, 0.9, 1.6, 0.45, 1);
   }
-  group.add(grass, blossom);
-  for (let i = 0; i < 34; i++) {
-    const a = random() * Math.PI * 2, r = 22 + random() * 3;
-    const rock = block(group, ['#b2b59e', '#989e8c', '#c7c7aa'][i % 3], [Math.cos(a) * r, 0.2, Math.sin(a) * r * 0.9], [0.5 + random(), 0.4 + random() * 0.6, 0.6 + random()], true); rock.rotation.y = random() * 6;
+  if (building.kind === 'mill') {
+    const sails = new THREE.Group(); sails.name = 'sails'; sails.position.set(0, 4.6, 2.65);
+    for (let i = 0; i < 4; i++) { const blade = new THREE.Group(); blade.rotation.z = i * Math.PI / 2; sails.add(blade); block(blade, '#e9d9af', [0.35, 1.7, 0], [0.6, 2.8, 0.12]); block(blade, '#857255', [0, 1.5, 0], [0.13, 3.3, 0.2]); }
+    group.add(sails);
   }
-  // Picnic meadow.
-  const picnic = new THREE.Group(); group.add(picnic);
-  block(group, '#e4a088', [-7, 0.075, 4], [5.1, 0.025, 3.6]);
-  for (let ix = 0; ix < 8; ix++) for (let iz = 0; iz < 6; iz++) if ((ix + iz) % 2 === 0) block(group, '#f3d3ad', [-9.23 + ix * 0.64, 0.095, 2.5 + iz * 0.6], [0.63, 0.015, 0.59]);
-  block(group, '#a98351', [-7, 0.67, 3.7], [2.6, 0.18, 1.5]);
-  for (const x of [-8, -6]) for (const z of [3.2, 4.2]) block(group, '#8b704b', [x, 0.34, z], [0.15, 0.7, 0.15]);
-  cylinder(picnic, '#f5e5be', 0.4, 0.35, 0.08, -7, 0.83, 3.7);
-  for (let i = 0; i < 5; i++) block(picnic, '#f6b449', [-7 + (i % 3 - 1) * 0.23, 0.99 + Math.floor(i / 3) * 0.18, 3.7 + (i % 2) * 0.18], [0.2, 0.2, 0.2], true);
-  picnic.visible = false;
-  textSign(group, 'PICNIC MEADOW', -7, 1.1);
-  // Garden beds and their persistent quest reward.
-  const flowers = new THREE.Group(); group.add(flowers);
-  for (const x of [6.9, 9.1]) {
-    block(group, '#8b7853', [x, 0.1, -5], [1.8, 0.14, 3.1]);
-    for (const side of [-1, 1]) block(group, '#c39a67', [x + side * 0.95, 0.23, -5], [0.12, 0.25, 3.3]);
-    for (let i = 0; i < 8; i++) {
-      const z = -6.1 + Math.floor(i / 2) * 0.75, ox = x + (i % 2 - 0.5) * 0.8;
-      block(flowers, '#659052', [ox, 0.45, z], [0.06, 0.65, 0.06]);
-      for (let j = 0; j < 5; j++) { const a = j * Math.PI * 2 / 5; block(flowers, i % 2 ? '#f2b683' : '#eee7b8', [ox + Math.cos(a) * 0.18, 0.8, z + Math.sin(a) * 0.18], [0.2, 0.12, 0.2], true); }
-      block(flowers, '#e9b64c', [ox, 0.87, z], [0.13, 0.12, 0.13], true);
+  if (['home', 'bakery', 'smithy', 'inn', 'pottery'].includes(building.kind)) block(group, '#9e9681', [2.4, 4.9, -1.5], [0.8, 2.1, 0.8]);
+  if (building.kind === 'farm') for (const x of [-5, 5]) { block(group, '#806745', [x, 0.15, 0], [1, 0.15, 4]); for (let i = 0; i < 5; i++) cone(group, '#c7b36a', x, 0.5, -1.5 + i * 0.7, 0.22, 0.7); }
+  if (building.kind === 'observatory') { const telescope = cylinder(group, '#c8aa70', 0, 6.8, 0, 0.25, 2.3); telescope.rotation.z = 0.9; }
+  const sails = group.getObjectByName('sails'); batchStaticMeshes(group, new Set(sails ? [sails] : []));
+  sign(group, def.name, 0, 3.2, 3.3, 3.3);
+  group.position.set(building.x, terrainHeight(building.x, building.z, seed), building.z); return group;
+}
+function furnish(group: THREE.Group, f: Furniture): void {
+  const object = new THREE.Group(); object.position.set(f.x, 0, f.z); group.add(object);
+  const wood = '#a88961', dark = '#786749', cloth = '#91a390';
+  const table = () => { block(object, wood, [0, 0.95, 0], [f.width, 0.18, f.depth]); for (const x of [-0.7, 0.7]) for (const z of [-0.45, 0.45]) block(object, dark, [x, 0.45, z], [0.12, 0.9, 0.12]); };
+  switch (f.kind) {
+    case 'bed': block(object, dark, [0, 0.3, 0], [2.5, 0.6, 2.7]); block(object, '#f3e7cb', [0, 0.67, 0], [2.3, 0.23, 2.5]); block(object, cloth, [0, 0.85, 0.4], [2.3, 0.13, 1.5]); block(object, '#faf0d9', [0, 0.9, -0.8], [1.8, 0.27, 0.5]); block(object, wood, [0, 0.85, -1.35], [2.6, 1.5, 0.12]); break;
+    case 'sofa': block(object, dark, [0, 0.25, 0], [2.5, 0.35, 1.5]); block(object, cloth, [0, 0.65, 0.1], [2.3, 0.4, 1.2]); block(object, cloth, [0, 1, -0.6], [2.5, 1.15, 0.3]); for (const x of [-1.1, 1.1]) block(object, cloth, [x, 0.9, 0], [0.3, 0.7, 1.5]); block(object, '#e5c794', [-0.6, 1, 0], [0.55, 0.5, 0.25]); break;
+    case 'shelf': for (const x of [-0.94, 0.94]) block(object, dark, [x, 1.3, -0.2], [0.14, 2.6, 0.8]); for (let y = 0.3; y < 2.7; y += 0.7) { block(object, wood, [0, y, -0.2], [2, 0.12, 0.85]); for (let i = 0; i < 6; i++) block(object, ['#a7795c', '#829989', '#c5b27c'][i % 3], [-0.7 + i * 0.27, y + 0.3, -0.15], [0.19, 0.5, 0.4]); } break;
+    case 'stove': block(object, '#8e9389', [0, 0.7, 0], [2, 1.4, 1.5]); block(object, '#514e43', [0, 0.6, 0.77], [1.3, 0.7, 0.03]); block(object, '#e5aa67', [0, 0.55, 0.8], [0.8, 0.22, 0.02]); cylinder(object, '#686e65', 0, 2.2, -0.4, 0.2, 1.8); break;
+    case 'sink': table(); block(object, '#e5e1d0', [0, 1.06, 0], [1.4, 0.2, 1]); block(object, '#89b4af', [0, 1.18, 0], [1.05, 0.05, 0.7]); cylinder(object, '#b4a47e', 0, 1.5, -0.5, 0.08, 0.6); break;
+    case 'barrel': cylinder(object, wood, 0, 0.75, 0, 0.7, 1.5); for (const y of [0.3, 1.2]) cylinder(object, '#777d6b', 0, y, 0, 0.72, 0.12); break;
+    case 'planter': block(object, '#b78362', [0, 0.35, 0], [2, 0.7, 1.5]); block(object, '#796443', [0, 0.72, 0], [1.8, 0.1, 1.3]); for (const x of [-0.6, 0, 0.6]) { cone(object, '#71915f', x, 1.2, 0, 0.4, 1); block(object, '#e3cfa0', [x, 1.65, 0], [0.17, 0.17, 0.17], true); } break;
+    case 'anvil': block(object, wood, [0, 0.4, 0], [1.6, 0.8, 1.2]); block(object, '#65706d', [0, 1, 0], [1.5, 0.5, 0.7]); block(object, '#89918a', [0, 1.3, 0], [2, 0.18, 0.9]); break;
+    case 'telescope': { cylinder(object, dark, 0, 0.8, 0, 0.12, 1.6); const tube = cylinder(object, '#c2ab77', 0, 1.8, 0, 0.32, 1.8); tube.rotation.z = 0.9; for (const x of [-0.6, 0.6]) { const leg = block(object, dark, [x, 0.5, 0], [0.15, 1.2, 0.15]); leg.rotation.z = x; } break; }
+    case 'bath': block(object, '#c3c7b5', [0, 0.5, 0], [2.5, 1, 2.7]); block(object, '#82b3af', [0, 1.03, 0], [2.1, 0.06, 2.3]); for (const x of [-1.15, 1.15]) block(object, '#e2e0ca', [x, 1, 0], [0.2, 0.2, 2.7]); break;
+    case 'loom': table(); for (const x of [-0.7, 0.7]) block(object, dark, [x, 1.7, 0], [0.13, 1.6, 0.13]); block(object, wood, [0, 2.4, 0], [1.6, 0.12, 0.12]); block(object, '#d5c39b', [0, 1.65, 0], [1.2, 1.3, 0.05]); for (let x = -0.5; x < 0.6; x += 0.2) block(object, '#acb99b', [x, 1.6, 0.04], [0.06, 1.3, 0.03]); break;
+    case 'display': table(); block(object, '#d4c49e', [0, 1.15, 0], [1.2, 0.15, 0.9]); block(object, '#a6a0bd', [0, 1.6, 0], [0.43, 0.65, 0.4], true); break;
+    case 'desk': table(); block(object, '#efe7ce', [0.3, 1.07, 0.1], [0.75, 0.04, 0.5]); block(object, '#a57f5f', [-0.5, 1.1, 0], [0.4, 0.12, 0.6]); cylinder(object, '#e9c784', -0.65, 1.45, -0.3, 0.12, 0.7); break;
+    case 'table': table(); cylinder(object, '#e7dcc2', 0, 1.1, 0, 0.35, 0.08); block(object, '#dba052', [0, 1.22, 0], [0.16, 0.16, 0.16], true); break;
+  }
+}
+export function createInterior(def: BuildingDefinition, room: RoomDefinition, index: number): THREE.Group {
+  const group = new THREE.Group();
+  block(group, '#786c56', [0, -0.25, 0], [12.5, 0.5, 10.5]);
+  for (let i = 0; i < 20; i++) block(group, i % 3 ? '#bca27a' : '#c8b18a', [0, 0.015, -4.75 + i * 0.5], [12, 0.04, 0.47]);
+  block(group, '#e8d9b8', [0, 1.65, -5], [12.3, 3.3, 0.25]);
+  block(group, '#9c8866', [0, 0.24, -4.8], [12, 0.35, 0.15]);
+  for (const side of [-1, 1]) {
+    for (const z of [-3, 3]) block(group, '#d7c5a2', [side * 6, 0.65, z], [0.22, 1.3, 4]);
+    for (const z of [-1, 1]) block(group, '#917758', [side * 5.98, 1.35, z], [0.28, 2.7, 0.22]);
+    block(group, '#917758', [side * 6, 2.65, 0], [0.28, 0.18, 2.2]);
+    const open = side === -1 ? index > 0 : index < def.rooms.length - 1;
+    block(group, open ? '#78998b' : '#aa9574', [side * 5.98, open ? 0.04 : 1.2, 0], [0.2, open ? 0.08 : 2.4, 1.7]);
+  }
+  for (const x of [-3.7, 3.7]) block(group, '#c6b28e', [x, 0.25, 5], [4.7, 0.5, 0.23]);
+  block(group, '#78998b', [0, 0.04, 4.8], [2.5, 0.08, 0.7]);
+  block(group, '#879985', [0, 0.07, 0], [4.2, 0.04, 4]);
+  for (const x of [-1.85, 1.85]) block(group, '#cbd0aa', [x, 0.095, 0], [0.07, 0.02, 3.65]);
+  windowFrame(group, -2.9, 2.1, -4.8); windowFrame(group, 2.9, 2.1, -4.8);
+  roomFurniture(room).forEach(f => furnish(group, f));
+  // Wall lights and their warm pools belong to the room, not to the outdoor world.
+  for (const x of [-5.2, 5.2]) { block(group, '#997e52', [x, 2, -4.65], [0.35, 0.65, 0.32]); block(group, '#f1d292', [x, 2.1, -4.43], [0.22, 0.37, 0.08]); }
+  batchStaticMeshes(group, new Set()); sign(group, room.name, 0, 2.75, -4.8, 3.1);
+  const light = new THREE.PointLight('#ffcd85', 12, 15, 2); light.position.set(0, 4, -2); group.add(light);
+  return group;
+}
+/** Dispose only local assets, never the shared capybara/material/primitive caches. */
+export function disposeWorldObject(root: THREE.Object3D): void {
+  root.traverse(object => { if (!(object instanceof THREE.Mesh)) return;
+    if (object instanceof THREE.InstancedMesh) object.dispose();
+    if (object.geometry.userData.owned) object.geometry.dispose();
+    for (const mat of Array.isArray(object.material) ? object.material : [object.material]) if (mat.userData.owned) {
+      if ('map' in mat) (mat.map as THREE.Texture | null)?.dispose(); mat.dispose();
     }
-  }
-  flowers.visible = false;
-  textSign(group, 'RIVERSIDE GARDEN', 8, -7.5);
-  // The spring: inset water, faceted boulders, bamboo and rising steam.
-  cylinder(group, '#75ada6', 2.8, 2.8, 0.1, 1, 0.08, -15, 16);
-  for (let i = 0; i < 15; i++) { const a = i / 15 * Math.PI * 2; block(group, '#a3a696', [1 + Math.cos(a) * 2.9, 0.22, -15 + Math.sin(a) * 2.9], [0.8, 0.55, 0.7], true); }
-  const steam = new THREE.Group(); group.add(steam); steam.visible = false;
-  const steamMat = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.25, depthWrite: false });
-  for (let i = 0; i < 8; i++) { const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), steamMat); puff.position.set(1 + (random() - 0.5) * 3, 1 + random() * 2, -15 + (random() - 0.5) * 3); puff.userData.base = puff.position.y; steam.add(puff); }
-  for (let i = 0; i < 7; i++) {
-    const x = -2.5 + i * 0.75;
-    cylinder(group, '#75965b', 0.08, 0.1, 2.5 + i % 3, x, 1.3, -19, 5);
-    for (let j = 0; j < 3; j++) { const leaf = block(group, '#89a565', [x + 0.3, 1.7 + j * 0.5, -19], [0.8, 0.06, 0.25]); leaf.rotation.z = 0.5; }
-  }
-  textSign(group, 'PEBBLE HOT SPRING', 1, -19.2);
-
-  const items = new Map<string, THREE.Group>();
-  for (const item of ITEMS) {
-    const object = new THREE.Group(); object.position.set(item.x, 0.35, item.z); group.add(object); items.set(item.id, object);
-    if (item.kind === 'orange') {
-      block(object, '#f6ab3d', [0, 0, 0], [0.34, 0.33, 0.34], true);
-      const leaf = block(object, '#477e48', [0.13, 0.29, 0], [0.26, 0.04, 0.14]); leaf.rotation.z = 0.35;
-    } else if (item.kind === 'seed') {
-      block(object, '#dfc49a', [0, 0, 0], [0.42, 0.48, 0.32]);
-      block(object, '#568851', [0, 0.01, 0.17], [0.19, 0.24, 0.015], true);
-      block(object, '#846e44', [0, 0.26, 0], [0.3, 0.06, 0.24]);
-    } else block(object, '#8babb5', [0, 0, 0], [0.42, 0.25, 0.36], true);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.48, 0.54, 24), new THREE.MeshBasicMaterial({ color: '#fff2b8', side: THREE.DoubleSide, transparent: true, opacity: 0.75 })); ring.rotation.x = -Math.PI / 2; ring.position.y = -0.23; object.add(ring);
-  }
-  const questMarkers = QUESTS.map(q => {
-    const marker = new THREE.Group(); marker.position.set(q.x, 3.8, q.z); group.add(marker);
-    const gem = block(marker, '#ffe3a0', [0, 0, 0], [0.37, 0.37, 0.37]); gem.rotation.z = Math.PI / 4; gem.rotation.x = Math.PI / 4;
-    return marker;
   });
-  const butterflies: THREE.Group[] = [];
-  for (let i = 0; i < 10; i++) {
-    const butterfly = new THREE.Group(); butterfly.position.set((random() - 0.5) * 30, 1 + random() * 2, (random() - 0.5) * 30);
-    butterfly.userData.origin = butterfly.position.clone();
-    for (const side of [-1, 1]) block(butterfly, i % 2 ? '#f6d796' : '#f1c0a4', [side * 0.12, 0, 0], [0.22, 0.025, 0.3], true);
-    group.add(butterfly); butterflies.push(butterfly);
-  }
-  batchStaticMeshes(group, new Set<THREE.Object3D>([...items.values(), ...questMarkers, flowers, picnic, steam, water, ...butterflies]));
-  return { group, items, questMarkers, flowers, picnic, steam, water, butterflies };
 }

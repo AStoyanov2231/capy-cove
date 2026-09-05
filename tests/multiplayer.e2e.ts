@@ -9,7 +9,7 @@ async function join(page: Page, url: string, name: string, guest = false, rejoin
     await page.getByRole('button', { name: 'flower accessory' }).click();
   }
   await page.getByRole('button', { name: guest ? 'Join your friend’s island' : 'Create an island' }).click();
-  if (rejoining) await expect(page.getByRole('heading', { name: 'A picnic for two' })).toBeVisible();
+  if (rejoining) await expect(page.getByRole('heading', { name: 'Sunlit meadows' })).toBeVisible();
   else await expect(page.getByRole('button', { name: 'I’m ready to explore' })).toBeVisible();
 }
 
@@ -32,8 +32,8 @@ test('two actual WebRTC peers choose capybaras, spawn, collect, reject a third, 
   await host.getByRole('button', { name: 'I’m ready to explore' }).click();
   await expect(host.getByRole('button', { name: 'Ready! Waiting for your friend' })).toBeVisible();
   await guest.getByRole('button', { name: 'I’m ready to explore' }).click();
-  await expect(host.getByRole('heading', { name: 'A picnic for two' })).toBeVisible();
-  await expect(guest.getByRole('heading', { name: 'A picnic for two' })).toBeVisible();
+  await expect(host.getByRole('heading', { name: 'Sunlit meadows' })).toBeVisible();
+  await expect(guest.getByRole('heading', { name: 'Sunlit meadows' })).toBeVisible();
   await expect(host.locator('#label-p1')).toHaveAttribute('data-x', '-2');
   await expect(guest.locator('#label-p2')).toHaveAttribute('data-x', '0');
   await host.screenshot({ path: 'test-results/game-desktop.png' });
@@ -63,7 +63,7 @@ test('two actual WebRTC peers choose capybaras, spawn, collect, reject a third, 
 
 test('desktop and mobile setup, keyboard-accessible help, touch play, and no overflow', async ({ page, browser }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Little island. Big capy energy.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'A wild world. Make it your own.' })).toBeVisible();
   await page.screenshot({ path: 'test-results/setup-desktop.png' });
   await page.getByRole('button', { name: 'How to play' }).click();
   await expect(page.getByRole('dialog', { name: 'How to play' })).toBeVisible();
@@ -79,7 +79,7 @@ test('desktop and mobile setup, keyboard-accessible help, touch play, and no ove
   await join(phone, invite, 'Clover', true);
   await page.getByRole('button', { name: 'I’m ready to explore' }).click();
   await phone.getByRole('button', { name: 'I’m ready to explore' }).click();
-  await expect(phone.getByRole('heading', { name: 'A picnic for two' })).toBeVisible();
+  await expect(phone.getByRole('heading', { name: 'Sunlit meadows' })).toBeVisible();
   await phone.screenshot({ path: 'test-results/game-mobile.png' });
   const button = phone.getByRole('button', { name: 'Move right', exact: true });
   await expect(button).toBeVisible();

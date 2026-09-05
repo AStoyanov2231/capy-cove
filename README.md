@@ -1,63 +1,82 @@
 # Capy Cove
 
-A little island. A friend. A very good day.
+Gather. Grow. Build a little life together.
 
-A two-player, low-poly 3D browser adventure built with TypeScript, Three.js, Vite, and PeerJS. All scenery and capybaras are procedural 3D models; fonts ship locally. No account, game-server deployment, or paid asset pack is required.
+A two-player, low-poly 3D browser sandbox built with TypeScript, Three.js, Vite, and PeerJS. The world, capybaras, buildings and furnished interiors are procedural 3D meshes. Fonts ship locally. No account or custom game server is required.
 
 **[Play Capy Cove](https://astoyanov2231.github.io/capy-cove/)**
 
-![Capy Cove's character selection and playable low-poly island](docs/screenshots/setup-desktop.png)
+## Take a friend into the world
 
-## Take a friend to the island
+1. Choose a name, capybara and cosmetic accessories.
+2. Create a world and send your private invite link to a friend.
+3. Both choose **I’m ready to explore**.
+4. Gather by hand, craft tools, fish, plant crops or choose a building blueprint. There are no quests or completion gates.
 
-1. Choose a name, male/female capybara, fur coat, and orange/flower/no accessory. These choices are cosmetic; both capybaras have the same abilities.
-2. Create an island and copy the private invite link.
-3. Your friend opens the link and chooses their capybara.
-4. Both tap **I’m ready to explore**. You spawn beside each other.
-5. Follow the glowing items and the dark diamond on the map. Each player must collect at least one item per quest. Gather the shared total, meet at the destination, and both interact.
+The shared bag starts with a few basic supplies. Inventory is shared; crafted tools belong to the player who makes them. Cosmetics never change abilities.
 
-### Three shared adventures
+### A renewable sandbox
 
-- **A picnic for two:** gather six oranges and set the picnic. Your fruit basket appears on the table.
-- **A little room to bloom:** gather four seed pouches and plant the riverside garden. The beds fill with flowers.
-- **The art of doing nothing:** gather four smooth stones and warm up Pebble Hot Spring. Steam rises, the adventure completes, and you can keep wandering together.
+- **Gathering:** wood, stone, oranges, fiber and wild seeds need no tool. Ordinary resources renew after 25 simulation seconds; ores after 45. Resources covered by buildings return when the building is dismantled. Nodes wait to renew if a player is standing on them.
+- **Crafting:** stone axe, stone pickaxe, garden hoe, fishing rod, copper axe and iron pickaxe. Tools improve yields, unlock ores and never break. Basic tools use renewable hand-gathered materials, so progression has no consumable-tool dependency loop.
+- **Fishing:** take a rod to a dry riverbank, cast with E, wait three seconds for the bite and reel within five seconds. Moving cancels the cast. No bait is consumed. Highland and snow rivers yield trout; other rivers yield river fish. Every third catch brings a pearl.
+- **Farming:** use Farm with a crafted hoe to plant wheat or carrots on open meadow or forest soil. Crops water themselves, mature in 45 simulation seconds, and yield three crops plus two seeds. Wild seed nodes replenish even if every stored seed is spent.
+- **Building:** select a blueprint, walk to position the highlighted foundation north of you, and choose **Place building**. Host rules enforce costs, spacing, terrain slope, dry foundations and accessible entrances. Docks and boathouses need a riverbank. Dismantling from the front door refunds all construction materials; occupied buildings cannot be removed.
+- **Independent interiors:** press E at a front door to transition into a furnished cutaway room. Side doors lead to the building’s other rooms. The front doorway in each room leads outside. Each player has their own location, view and camera, so one can craft indoors while the other gathers outdoors. Walls and furniture have authoritative collision.
 
-Explore bridges, an orange grove, bamboo, wildflowers, butterflies, and a winding swimmable river. Send a heart whenever words are unnecessary.
+### Twenty furnished buildings
 
-### Controls
+Home house, farmstead, water dock, workshop, forest cottage, greenhouse, bakery, smithy, mountain lodge, library, cozy inn, windmill, boathouse, apothecary, observatory, tea house, warehouse, pottery studio, bathhouse and island museum.
+
+Every building has three themed furnished rooms; the inn has four. Furniture is scenery with collision, not a furniture-placement editor or a separate production machine. Tools can be crafted indoors or outdoors.
+
+### Procedural geography
+
+Each host generates a random seed for a **finite 256 × 256 world**, substantially larger than the original island. Warped biome regions and layered terrain noise vary the layout, hills and dunes between worlds. This is not infinite Minecraft-style chunk streaming or editable voxel terrain.
+
+- Sunlit meadows: starting resources and fertile soil.
+- Whispering woods: abundant wood, fiber and copper.
+- Amber dunes: sand, copper and stone.
+- Willow wetlands: clay and reeds.
+- Cascading highlands: elevation, river cascades, iron and crystal.
+- Frostpine peaks: snowy ridges, iron and crystal.
+
+All raw materials have renewable sources. No tool or recipe requires a finite quest reward. Sessions currently allow 100 buildings, 200 crop plots and 9,999 units of each inventory material. Inventory limits are storage caps, not a depletion of the world’s resources.
+
+## Controls
 
 | Action | Desktop | Touch |
 | --- | --- | --- |
-| Move | WASD or arrow keys | Direction pad |
-| Collect / help | E or Space | Context action button |
+| Move | WASD or arrows | Direction pad |
+| Gather / harvest / fish / use doors | E or Space | Context action button |
+| Craft / Build / Farm / Bag | C / B / G / I | Labeled toolbar buttons |
+| Cancel menu or blueprint | Escape | Close / cancel button |
 | Send a heart | H | Heart button |
 | Zoom | Mouse wheel | Default camera framing |
-| Journal | Click current quest heading | Tap current quest heading |
 | Sound / help / leave | Top-right buttons | Top-right buttons |
 
-Movement is camera-relative. Swimming is automatic and slower than walking. Sound is optional and starts only after you enable it. Reduced-motion settings disable ambient animation; gameplay remains animated.
+Movement is camera-relative. Swimming is automatic and slower. Sound is optional. Reduced-motion settings disable ambient effects and room fades without disabling gameplay.
 
 ## Run locally
 
-Requires **Node.js 22.12+** (or 24+) and npm.
+Requires Node.js 22.12+ (or 24+) and npm.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open the Vite URL. Normal development uses the public PeerJS signaling service, just like the deployed game. The host's invite must use an address the guest can reach; `localhost` links only work on the same computer. For another device on your LAN use the host's LAN IP and port.
+Normal development uses public PeerJS signaling. Invite links must use an address the guest can reach; `localhost` only works on the same computer. Use the host’s LAN IP and port for another device on the LAN.
 
 ```sh
-npm run check       # ESLint, unit tests, type check, production build
-npx playwright install chromium
-npm run test:e2e    # Isolated local signaling server + real browser WebRTC peers
-npm run preview    # Serve the production build
+npm run build      # TypeScript and production compilation, no tests
+npm run lint       # Static lint, no browser execution
+npm run check      # Lint, unit tests, TypeScript, production build
+npm run test:e2e   # Real browser WebRTC peers and local signaling
+npm run preview
 ```
 
-The E2E suite verifies character selection, two-player readiness, synchronized movement and pickups, third-player rejection, disconnect/pause/rejoin, the full three-quest adventure, mobile controls, and layout overflow. Tests do not teleport players or bypass the game protocol. The long adventure uses DOM keyboard events for steering to avoid automation round-trip latency; the shorter multiplayer test uses Playwright keyboard and pointer input.
-
-Screenshots and failure traces are written to `test-results/`; the HTML report is in `playwright-report/`. The test-only `peer` dependency is never included in the browser build. The `qs` override keeps that test signaling server's transitive Express dependencies on a patched release.
+`tests/game.test.ts` covers the sandbox rules and protocol. `tests/adventure.e2e.ts` exercises construction, independent interior rooms and farming through DOM keyboard controls. The multiplayer scenarios cover readiness, movement, pickup synchronization, third-player rejection, disconnect/rejoin and mobile controls. There are no production teleport/debug hooks. See `docs/QUALITY.md` for what was actually verified for this change; test definitions are not evidence that they passed.
 
 ## Architecture
 
@@ -65,55 +84,45 @@ Screenshots and failure traces are written to `test-results/`; the HTML report i
 src/
   main.ts              Session lifecycle and dependency wiring
   game/
-    schema.ts          Zod-validated, versioned wire types
-    content.ts         Items, quest definitions, geography, tuning
-    engine.ts          Pure host-owned gameplay and fixed-step simulation
-    input.ts           Keyboard/touch input translated to camera-relative movement
+    schema.ts          Version 2 Zod wire types and bounded commands
+    content.ts         Recipes, materials, buildings, rooms, furniture footprints
+    geography.ts       Seeded biomes, terrain height and renewable resource nodes
+    engine.ts          Browser-independent authoritative simulation
+    input.ts           Camera-relative keyboard and touch movement
   network/
-    session.ts         Peer lifecycle, handshakes, capacity, protocol routing
+    session.ts         Peer lifecycle, handshakes, capacity and protocol routing
   render/
-    renderer.ts        Camera, animation, interpolation, adaptive resolution
-    world.ts           Procedural island and persistent quest rewards
-    capybara.ts        Cosmetic model factory and animation
-    batching.ts        Static material-based geometry batching
+    renderer.ts        Camera, local interior switching, interpolation and previews
+    world.ts           Procedural scenery, architecture and furnished rooms
+    capybara.ts        Cosmetic models and animation
+    batching.ts        Static material-based mesh batching
   ui/
-    interface.ts       Accessible DOM setup, lobby, HUD, journal, dialogs
-    minimap.ts         Shared geography projected to a small canvas
-    audio.ts           Optional synthesized chimes and birds
-    icons.ts           Selected Lucide icons and text escaping
+    interface.ts       Setup, lobby, surroundings, sandbox menus and dialogs
+    minimap.ts         Seeded world map and collision-aligned room maps
+    audio.ts           Optional synthesized sounds
+    icons.ts           Selected Lucide icons and escaping
 ```
 
-### Ownership and extension points
+The host owns all gameplay. Guests send bounded movement vectors and enumerated intent, never positions, inventory totals, placement coordinates or room identifiers. Host rules resolve interaction proximity, resource readiness, costs, tool requirements, placement and room transitions. Protocol v2 replaces the old quest protocol; old clients are not compatible.
 
-- The **host is authoritative**. Guests send bounded movement vectors and action intent, never positions, inventory totals, or quest completion. Zod validates incoming messages. Host logic enforces proximity, current-quest items, single collection, both contributions, and both players being at the destination.
-- Simulation runs at **30 fixed steps/second**, snapshots at **10/second**, and movement input at **20/second**. Accumulation handles short frame stalls, catch-up is capped, and stale input expires. Rendered positions interpolate toward authoritative snapshots.
-- Exactly one guest connection is reserved. A handshake completes before a snapshot is sent. Extra peers receive a clear rejection. A disconnected guest can reclaim the second slot while preserving the session's shared progress.
-- Static meshes batch by material; vegetation uses instancing. Static shadow maps are cached, with bounded updates for moving characters and rewards. Procedural animation/reward subtrees stay separate. Pixel ratio is capped and automatically reduced on sustained slow frames.
-- Input transitions send immediately, with periodic refreshes for stale-input protection. Browser E2E runs use lower device-pixel ratio on CI's software GPU, not different game rules. Retries are disabled so flaky behavior cannot be silently accepted.
-- Add content in `game/content.ts`; add its physical reward in `render/world.ts`. New quest/item kinds also require corresponding schema bounds, UI labels, and tests. Do not put game rules in rendering or DOM callbacks.
-- Add a future transport behind `Session`'s command/state boundary. Keep the authoritative engine usable without a browser; that is the foundation for a dedicated server if the game grows beyond friend-to-friend sessions.
+Simulation runs at 30 fixed steps/second, snapshots at 10/second and input refreshes at 20/second. Short stalls use bounded catch-up; stale inputs expire. Disconnects pause simulation time, crops and resource regeneration. Rejoining restores the guest’s tools, room and progress while the host remains online.
 
-## Networking: what GitHub Pages can and cannot do
+Rendering consumes the same terrain sampling and furniture footprints as the engine. Static meshes batch by material; understory is instanced and distant resource models are culled. Resolution and shadow size adapt to sustained slow frames. Local view transitions never change another player’s view.
 
-GitHub Pages serves **static files**, not a multiplayer server. PeerJS's public signaling service introduces the browsers, STUN helps them discover routes, and **WebRTC data channels carry the game state directly**. No game state is stored by this project on a backend.
+## Networking and session lifetime
 
-- Both players need internet access, a WebGL-capable modern browser, and a working WebRTC route. PeerJS's shared signaling service has no uptime guarantee from this project.
-- **The host must keep the tab open and preferably visible.** Browsers throttle background tabs. Host reloads, closing the tab, or leaving the island ends the adventure. There is no save system or host migration.
-- Guest disconnects pause gameplay. Reopen the same invite while the host stays online to reconnect. This restores the second-player slot and shared progress, not an account identity. Anyone holding the unoccupied invite can take that slot, so share it privately.
-- Corporate Wi-Fi, VPNs, symmetric NAT, or restrictive firewalls can prevent direct connections. Try a different network. Reliable connectivity across those environments requires a TURN relay, which is **not provisioned by this repository**.
-- `.env.example` documents optional signaling and TURN settings. `VITE_*` values are compiled into the public JavaScript. They are **not secrets**. For a production TURN service, add a secured endpoint that issues short-lived credentials rather than embedding a permanent relay password.
-- Peers can learn each other's network addresses through WebRTC. This is a small friends-only co-op game, not a hardened competitive multiplayer service.
+GitHub Pages serves static files. PeerJS signaling introduces the browsers, STUN discovers routes, and WebRTC data channels carry state directly. There is no backend database.
 
-## GitHub Pages deployment
+- The host must keep the tab open and preferably visible. **Host reloads, closing the tab or leaving ends the world. There is no save system or host migration.**
+- Guest disconnects pause gameplay. Reopen the same invite to reclaim the second slot while the host remains online. This is an invitation, not account authentication; keep it private.
+- Corporate Wi-Fi, VPNs, symmetric NAT and restrictive firewalls may require TURN. No TURN relay is provisioned by this repository.
+- `.env.example` documents signaling and TURN settings. `VITE_*` values are public browser configuration, not secrets. Use short-lived credentials from a secured endpoint for a production TURN service; do not commit real credentials.
+- PeerJS’s shared signaling service has no uptime guarantee. Peers can learn each other’s network addresses. This is friends-only co-op, not hardened competitive multiplayer.
 
-`.github/workflows/pages.yml` builds and deploys `dist/` on pushes to `main` using GitHub's Pages artifact workflow. Relative Vite asset paths support the repository subpath; invite links use a query parameter, so no SPA redirect file is needed.
+## Deployment
 
-In the repository's **Settings → Pages**, the build source must be **GitHub Actions**. Push to `main` to deploy the latest build.
+`.github/workflows/pages.yml` builds and deploys `dist/` when `main` is pushed. Repository **Settings → Pages → Source** must be **GitHub Actions**. Relative Vite assets support the repository subpath; invitations use query parameters and need no SPA redirect.
 
-Local E2E environment variables apply only to Vite's test server; the production build uses the public signaling service by default.
+A push is not proof of deployment. The Pages workflow must finish successfully before calling a new version live. Test-only signaling environment variables do not affect production builds.
 
-## Design and dependencies
-
-`PRODUCT.md` records approved product constraints. `DESIGN.md` records the implemented visual system. `AGENTS.md` points future contributors at the authoritative rules and commands.
-
-Third-party license notices are included in `public/licenses/` and ship with the game. See `THIRD_PARTY.md`. This repository does not grant a separate license to the original game code or artwork; choose a project license before redistributing it beyond the rights GitHub provides.
+`PRODUCT.md` records approved scope, `DESIGN.md` the visual system, and `AGENTS.md` contributor rules. Dependency notices ship under `public/licenses/`; see `THIRD_PARTY.md`. No separate license is granted to the original game code or artwork by this repository.

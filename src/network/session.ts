@@ -1,7 +1,7 @@
 import Peer, { type DataConnection, type PeerOptions } from 'peerjs';
 import { GameEngine } from '../game/engine';
 import { SNAPSHOT_RATE, TICK_RATE } from '../game/content';
-import { guestMessageSchema, hostMessageSchema, type GameState, type GuestMessage, type HostMessage, type MoveInput, type PlayerId, type Profile } from '../game/schema';
+import { guestMessageSchema, hostMessageSchema, PROTOCOL_VERSION, type GameState, type GuestMessage, type HostMessage, type MoveInput, type PlayerId, type Profile } from '../game/schema';
 
 export interface SessionEvents {
   state: (state: GameState) => void;
@@ -47,7 +47,7 @@ export class Session {
   constructor(private profile: Profile, room: string | null, private events: SessionEvents) {
     this.localId = room ? 'p2' : 'p1';
     this.room = room || Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
-    this.engine = room ? null : new GameEngine();
+    this.engine = room ? null : new GameEngine(crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff);
     this.engine?.addPlayer('p1', profile);
     this.peer = room ? new Peer(peerOptions()) : new Peer(`capycove-${this.room}`, peerOptions());
   }
@@ -98,7 +98,7 @@ export class Session {
         if (!this.handshake && !this.closed) this.events.lost('Your friend could not be reached. Keep their island open and try again. Some networks need a TURN relay.');
       }, 20000);
       this.timers.push(timeout);
-      connection.on('open', () => this.send({ type: 'hello', version: 1, profile: this.profile }));
+      connection.on('open', () => this.send({ type: 'hello', version: PROTOCOL_VERSION, profile: this.profile }));
       connection.on('data', raw => {
         const parsed = hostMessageSchema.safeParse(raw);
         if (!parsed.success || this.closed) return;
@@ -174,6 +174,7 @@ export class Session {
       case 'ready': this.engine.ready(id, msg.value); break;
       case 'interact': this.engine.interact(id); break;
       case 'emote': this.engine.emote(id); break;
+      case 'craft': case 'build': case 'plant': case 'dismantle': this.engine.action(id, msg); break;
     }
     if (msg.type !== 'input') this.publish();
   }

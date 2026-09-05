@@ -22,6 +22,7 @@ export function batchStaticMeshes(root: THREE.Group, dynamic: Set<THREE.Object3D
     const geometry = mergeGeometries(geometries);
     geometries.forEach(g => g.dispose());
     if (!geometry) continue;
+    geometry.userData.owned = true;
     const combined = new THREE.Mesh(geometry, material);
     combined.castShadow = meshes.some(m => m.castShadow); combined.receiveShadow = meshes.some(m => m.receiveShadow);
     meshes.forEach(mesh => mesh.removeFromParent()); root.add(combined);

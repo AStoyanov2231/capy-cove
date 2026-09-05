@@ -23,7 +23,7 @@ async function boot(): Promise<void> {
   let connecting = false;
   let room = roomFromUrl();
   let attempt = 0;
-  let lastNotice = 0, lastQuest = 0, lastCollected = 0;
+  let lastNotice = 0, lastBuildings = 0, lastHarvests = 0;
   const ui = new GameUI(root, room, {
     preview: profile => renderer.preview(profile),
     connect: profile => { void connect(profile); },
@@ -37,6 +37,8 @@ async function boot(): Promise<void> {
     interact: () => session?.command({ type: 'interact' }),
     emote: () => session?.command({ type: 'emote' }),
     sound: () => audio.toggle(),
+    command: command => session?.command(command),
+    blueprint: kind => renderer.selectBuilding(kind),
   });
   renderer.onFrame = project => ui.positionLabels(project);
   renderer.onContextLost = () => {
@@ -51,7 +53,7 @@ async function boot(): Promise<void> {
     if (connecting) return;
     connecting = true; const current = ++attempt;
     session?.close(); input.setActive(false);
-    lastNotice = 0; lastQuest = 0; lastCollected = 0;
+    lastNotice = 0; lastBuildings = 0; lastHarvests = 0;
     ui.connecting();
     const next = new Session(profile, room, {
       state: state => {
@@ -60,9 +62,9 @@ async function boot(): Promise<void> {
         ui.update(state, next.localId); renderer.update(state, next.localId);
         input.setActive(state.phase !== 'lobby' && bothConnected(state));
         if (state.noticeId > lastNotice) { lastNotice = state.noticeId; ui.toast(state.notice); }
-        if (state.quest > lastQuest) audio.chime();
-        else if (state.collected.length > lastCollected) audio.collect();
-        lastQuest = state.quest; lastCollected = state.collected.length;
+        if (state.buildings.length > lastBuildings) audio.chime();
+        else if (state.harvests > lastHarvests) audio.collect();
+        lastBuildings = state.buildings.length; lastHarvests = state.harvests;
       },
       status: message => { if (current === attempt) ui.toast(message); },
       lost: message => {
