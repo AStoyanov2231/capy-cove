@@ -2,7 +2,9 @@
 
 Generated with Pi `codex_generate_image`, using the OpenAI Codex backend `gpt-image-2`. No CLI/API model fallback was used. Slime Rancher was a user-supplied quality reference; no Slime Rancher assets are used.
 
-Shipping assets: `public/art/icons/*.webp`, `public/art/menu-frame.webp`, `public/art/hotbar-frame.webp`. There are 48 icons: 16 resource illustrations (including a spare sprout), 12 tool/action illustrations, and 20 buildings. Each icon is normalized to a transparent 256 × 256 canvas. The two frames are cropped WebP assets used as a scalable menu border and hotbar backplate.
+Shipping assets: `public/art/icons/*.webp`, `public/art/menu-frame.webp`, `public/art/hotbar-frame.webp`. The current catalog retains 34 raster icons: 16 resource illustrations (including a spare sprout), 12 tool/action illustrations, and six buildings (home, farm, dock, greenhouse, smithy, observatory). Fourteen obsolete building icons were removed in the building overhaul. Each retained icon is normalized to a transparent 256 × 256 canvas. The two frames are cropped WebP assets used as a scalable menu border and hotbar backplate.
+
+The original prompts and atlases below document the historical 48-icon generation, not the current building roster. They are intentionally preserved verbatim as provenance. The overhaul did not generate new raster assets; processed materials use small authored vector glyphs in `src/ui/art.ts`, and the specialized fishing kit reuses the rod image.
 
 Resource/building/tool atlas cell order is the order specified below. `resources-crystal.webp` uses the dedicated green-key replacement, not the original magenta-key atlas crystal. Intermediate originals remain in Pi's generated-images directory. Source atlases and chroma sources are kept here for reference, outside the production bundle.
 

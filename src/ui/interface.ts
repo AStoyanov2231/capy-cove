@@ -1,11 +1,12 @@
 import { ITEM_LABELS, buildingDefinition } from '../game/content';
 import { art } from './art';
 import { panelDefaults, workshopMarkup, type Panel, type Selection } from './workshop';
-import { bothConnected, canAfford, nearestInteraction, placementIssue } from '../game/engine';
+import { bothConnected, canAfford, isNight, nearestInteraction, placementIssue, usableFurniture } from '../game/engine';
 import { BIOMES, biomeAt } from '../game/geography';
-import { buildingKindSchema, cropKindSchema, toolKindSchema, profileSchema, type BuildingKind, type GameState, type PlayerId, type Profile, type SandboxCommand } from '../game/schema';
+import { buildingKindSchema, cropKindSchema, toolKindSchema, profileSchema, type BuildingKind, type GameState, type PlayerId, type Profile, type Rotation, type SandboxCommand } from '../game/schema';
 import { FUR_COLORS } from '../render/capybara';
 import { drawMinimap } from './minimap';
+import { BuildingUseUI } from './building-use';
 import { escapeHtml as esc, icon, renderIcons } from './icons';
 
 export interface UIEvents {
@@ -15,11 +16,12 @@ export interface UIEvents {
   leave: () => void;
   retry: () => void;
   interact: () => void;
+  stopMoving: () => void;
   emote: () => void;
   sound: () => Promise<boolean>;
   testMode: (enabled: boolean) => void;
   command: (command: SandboxCommand) => void;
-  blueprint: (kind: BuildingKind | null) => void;
+  blueprint: (kind: BuildingKind | null, rotation?: Rotation) => void;
 }
 const defaultProfile: Profile = { name: 'Capy', gender: 'male', fur: 'honey', accessory: 'orange' };
 export function savedProfile(): Profile {
@@ -40,11 +42,14 @@ export class GameUI {
   private mapExpanded = false;
   private panelSignature = '';
   private blueprint: BuildingKind | null = null;
+  private rotation: Rotation = 0;
+  private buildingUI: BuildingUseUI;
   private invite = '';
   private lastFocus: HTMLElement | null = null;
   private room: string | null;
   constructor(private root: HTMLElement, room: string | null, private events: UIEvents) {
     this.room = room;
+    this.buildingUI = new BuildingUseUI(root, command => this.events.command(command));
     root.addEventListener('click', event => this.click(event));
     root.addEventListener('input', event => {
       const target = event.target as HTMLInputElement;
@@ -62,6 +67,7 @@ export class GameUI {
       const key = event.key.toLowerCase();
       if (key === 'escape') { this.closePanel(); this.selectBlueprint(null); this.toggleMap(false); }
       if (key === 'm') { event.preventDefault(); this.toggleMap(); }
+      if (key === 'r' && this.blueprint) { event.preventDefault(); this.rotateBlueprint(); }
       if (key === 'b' || key === 'c' || key === 'i' || key === 'g') { event.preventDefault(); this.openPanel(key === 'b' ? 'build' : key === 'c' ? 'craft' : key === 'g' ? 'farm' : 'bag'); }
     });
     this.showSetup();
@@ -75,6 +81,7 @@ export class GameUI {
     return `<header class="topbar"><a class="brand" href="${location.pathname}" aria-label="Capy Cove home" data-action="home">${capyMark}<span>capy cove<span class="brand-dot">.</span></span></a>${this.toolbar()}</header>`;
   }
   showSetup(): void {
+    this.buildingUI.reset(); this.mapExpanded = false; this.rotation = 0;
     this.state = null; this.screen = 'setup'; this.signature = ''; this.panel = null; this.blueprint = null; this.events.blueprint(null);
     this.root.className = 'setup-screen';
     this.root.innerHTML = `${this.header()}
@@ -140,14 +147,14 @@ export class GameUI {
   private showGame(): void {
     this.screen = 'game'; this.root.className = 'game-screen';
     this.root.innerHTML = `${this.header()}
-      <section class="place-panel" aria-label="Your surroundings"><h2 id="place-title">Sunlit meadows</h2><span id="friend-location"></span><span id="test-mode-status" class="test-mode-status" hidden>Builder test mode</span></section>
+      <section class="place-panel" aria-label="Your surroundings"><h2 id="place-title">Sunlit meadows</h2><span id="day-state" aria-label="Daytime"></span><span id="friend-location"></span><span id="test-mode-status" class="test-mode-status" hidden>Builder test mode</span></section>
       <aside class="map-panel" aria-label="World map"><button class="map-toggle" data-action="map" aria-label="Expand world map" aria-expanded="false"><canvas id="minimap" width="440" height="440" aria-label="Map showing biomes, resources, buildings, you and your friend"></canvas></button></aside>
       <div id="connection-banner" class="connection-banner" role="status" hidden>${icon('radio')}Your friend disconnected. The world is paused.<button data-action="copy">Copy invite</button></div>
       <div id="player-labels" aria-hidden="true"><div id="label-p1" class="player-label"></div><div id="label-p2" class="player-label"></div></div>
       <nav class="sandbox-tools" aria-label="Sandbox tools">${(['craft', 'build', 'farm', 'bag'] as const).map((p, i) => `<button data-panel="${p}" aria-label="${p[0].toUpperCase() + p.slice(1)}" data-tooltip="${p[0].toUpperCase() + p.slice(1)} (${['C', 'B', 'G', 'I'][i]})" aria-expanded="false" aria-controls="sandbox-panel">${art('tools', p)}</button>`).join('')}</nav>
       <aside class="inventory" aria-label="Shared backpack">${(['wood', 'stone', 'seed', 'orange'] as const).map(kind => `<span title="${ITEM_LABELS[kind]}" aria-label="${ITEM_LABELS[kind]}">${art('resources', kind)}<b id="bag-${kind}">0</b></span>`).join('')}</aside>
       <section id="sandbox-panel" class="sandbox-panel" aria-label="Sandbox menu" hidden></section>
-      <section id="build-placement" class="build-placement" aria-label="Building placement" hidden><div><strong id="blueprint-title"></strong><p id="blueprint-hint"></p></div><button class="button primary" data-action="place" id="place-button">Place building</button><button class="icon-button" data-action="cancel-build" aria-label="Cancel building placement">${icon('x')}</button></section>
+      <section id="build-placement" class="build-placement" aria-label="Building placement" hidden><div><strong id="blueprint-title"></strong><p id="blueprint-hint"></p></div><button class="button secondary rotate-building" data-action="rotate-build" aria-label="Rotate building clockwise (R)"><kbd>R</kbd><span id="rotation-label">0°</span>${icon('rotate-cw')}</button><button class="button primary" data-action="place" id="place-button">Place building</button><button class="icon-button" data-action="cancel-build" aria-label="Cancel building placement">${icon('x')}</button></section>
       <div class="interaction-area" hidden><button id="interact-button" class="interact-button" data-action="interact" disabled><kbd>E</kbd><span id="interact-label"></span></button></div>
       <button class="emote-button icon-button" data-action="emote" aria-label="Send a heart (H)" title="Send a heart (H)">${art('tools', 'heart')}</button>
       <div class="touch-controls" aria-label="Movement controls"><button data-move="w" class="up" aria-label="Move up">${icon('arrow-right')}</button><button data-move="a" class="left" aria-label="Move left">${icon('arrow-right')}</button><span>${icon('leaf')}</span><button data-move="d" class="right" aria-label="Move right">${icon('arrow-right')}</button><button data-move="s" class="down" aria-label="Move down">${icon('arrow-right')}</button></div><div id="dialogs"></div>`;
@@ -156,12 +163,15 @@ export class GameUI {
   private text(id: string, value: string): void { const element = document.getElementById(id); if (element && element.textContent !== value) element.textContent = value; }
   private updateGame(): void {
     const state = this.state!;
+    this.buildingUI.update(state, this.localId);
     const local = state.players[this.localId];
     if (!local) return;
     const building = local.location ? state.buildings.find(b => b.id === local.location!.buildingId) : null;
     const def = building ? buildingDefinition(building.kind) : null;
     const biome = BIOMES[biomeAt(local.x, local.z, state.seed)];
     this.text('place-title', def && local.location ? def.rooms[local.location.room].name : biome.name);
+    const dayState = document.getElementById('day-state')!;
+    const night = isNight(state); if (dayState.dataset.night !== String(night)) { dayState.dataset.night = String(night); dayState.innerHTML = icon(night ? 'moon' : 'sun'); dayState.setAttribute('aria-label', night ? 'Nighttime' : 'Daytime'); dayState.title = night ? 'Nighttime' : 'Daytime'; renderIcons(); }
     const friend = state.players[this.localId === 'p1' ? 'p2' : 'p1'];
     const friendBuilding = friend?.location ? state.buildings.find(b => b.id === friend.location!.buildingId) : null;
     this.text('friend-location', friend?.profile.name || '');
@@ -191,8 +201,10 @@ export class GameUI {
     }
     drawMinimap(document.getElementById('minimap') as HTMLCanvasElement, state, this.localId);
     if (this.blueprint) {
-      const def = buildingDefinition(this.blueprint), issue = placementIssue(state, local, this.blueprint);
+      const def = buildingDefinition(this.blueprint), issue = placementIssue(state, local, this.blueprint, this.rotation);
       this.text('blueprint-title', def.name);
+      this.text('rotation-label', `${this.rotation}°`);
+      document.getElementById('build-placement')!.dataset.rotation = String(this.rotation);
       this.text('blueprint-hint', issue || (!canAfford(state, def.cost) ? 'Missing materials' : 'Choose a clear spot'));
       (document.getElementById('place-button') as HTMLButtonElement).disabled = !!issue || !canAfford(state, def.cost) || !bothConnected(state);
     }
@@ -257,9 +269,24 @@ export class GameUI {
     if (wasOpen) this.root.querySelector<HTMLElement>(`[data-panel="${wasOpen}"]`)?.focus();
   }
   private selectBlueprint(kind: BuildingKind | null): void {
-    this.blueprint = kind; this.events.blueprint(kind);
+    this.rotation = 0; this.blueprint = kind; this.events.blueprint(kind, this.rotation);
     const placement = document.getElementById('build-placement'); if (placement) placement.hidden = !kind;
     if (kind) { this.closePanel(); this.updateGame(); }
+  }
+  private rotateBlueprint(): void {
+    if (!this.blueprint) return;
+    this.rotation = ((this.rotation + 90) % 360) as Rotation;
+    this.events.blueprint(this.blueprint, this.rotation); this.updateGame();
+  }
+  interact(): void {
+    if (!this.state || this.panel || this.blueprint || document.querySelector('dialog[open]')) return;
+    const target = nearestInteraction(this.state, this.localId), p = this.state.players[this.localId];
+    if (target?.type === 'furniture' && p) {
+      this.events.stopMoving();
+      const ctx = usableFurniture(this.state, p, target.id);
+      if (ctx && ['storage', 'station', 'plot'].includes(ctx.furniture.use!.type)) { this.buildingUI.open(target.id); return; }
+    }
+    this.events.interact();
   }
   private renderPanel(): void {
     if (!this.panel || !this.state) return;
@@ -302,8 +329,9 @@ export class GameUI {
       case 'map': this.toggleMap(); break;
       case 'close-panel': this.closePanel(); break;
       case 'cancel-build': this.selectBlueprint(null); break;
-      case 'place': if (this.blueprint) this.events.command({ type: 'build', kind: this.blueprint }); this.selectBlueprint(null); break;
-      case 'confirm-dismantle': this.dialog('<h2>Dismantle this building?</h2><p>The building by your front paws will be removed. All construction materials return to the shared bag. No one can be inside.</p><button class="button primary" data-action="close-dialog">Keep building</button><button class="button secondary" data-action="dismantle">Dismantle and refund materials</button>', 'Dismantle building?'); break;
+      case 'rotate-build': this.rotateBlueprint(); break;
+      case 'place': if (this.blueprint) this.events.command({ type: 'build', kind: this.blueprint, rotation: this.rotation }); break;
+      case 'confirm-dismantle': this.dialog('<h2>Dismantle this building?</h2><p>The building by your front paws will be removed. Empty storage, harvest plots and collect all jobs first. Both players must be outside, with room in the bag for the full refund.</p><button class="button primary" data-action="close-dialog">Keep building</button><button class="button secondary" data-action="dismantle">Dismantle and refund materials</button>', 'Dismantle building?'); break;
       case 'dismantle': this.root.querySelector('dialog')?.close(); this.events.command({ type: 'dismantle' }); this.closePanel(); break;
       case 'close-dialog': this.root.querySelector('dialog')?.close(); break;
       case 'sound':
@@ -317,7 +345,7 @@ export class GameUI {
       case 'leave': this.confirmLeave(); break;
       case 'exit': this.root.querySelector('dialog')?.close(); this.events.leave(); break;
       case 'retry': this.root.querySelector('dialog')?.close(); this.events.retry(); break;
-      case 'interact': this.events.interact(); break;
+      case 'interact': this.interact(); break;
       case 'emote': this.events.emote(); break;
     }
   }

@@ -1,4 +1,4 @@
-import { BUILDINGS, ITEM_LABELS, TOOLS, buildingDefinition, type Cost } from '../game/content';
+import { BUILDINGS, ITEM_LABELS, STATIONS, TOOLS, buildingDefinition, type Cost } from '../game/content';
 import { bothConnected, canAfford, entrance } from '../game/engine';
 import { distance } from '../game/content';
 import { itemKindSchema, type BuildingKind, type CropKind, type GameState, type ItemKind, type PlayerId, type ToolKind } from '../game/schema';
@@ -9,9 +9,9 @@ export type Selection = ItemKind | ToolKind | BuildingKind;
 const sources: Record<ItemKind, string> = {
   orange: 'Meadows', seed: 'Meadows · Forests', stone: 'Meadows · Dunes · Highlands', wood: 'Meadows · Forests', fiber: 'Meadows · Forests · Wetlands',
   clay: 'Wetlands', sand: 'Amber dunes', copper: 'Forests · Amber dunes', iron: 'Highlands · Frostpine peaks', crystal: 'Highlands · Frostpine peaks',
-  wheat: 'Grow from wild seeds', carrot: 'Grow from wild seeds', fish: 'Riverbanks', trout: 'Highland riverbanks', pearl: 'Every third fishing catch',
+  wheat: 'Outdoor crops · Greenhouse beds', carrot: 'Outdoor crops · Greenhouse beds', fish: 'Riverbanks', trout: 'Highland riverbanks', pearl: 'Every third fishing catch',
+  copperBar: 'Smithy forge', ironBar: 'Smithy forge', copperHead: 'Smithy anvil', ironHead: 'Smithy anvil', copperBlank: 'Smithy workbench', ironBlank: 'Smithy workbench', hook: 'Water dock fishing workbench', net: 'Water dock net-making table',
 };
-const effects: Record<ToolKind, string> = { axe: 'Double wood & fiber', pickaxe: 'Mine ore · double stone', hoe: 'Plant on meadow & forest soil', rod: 'Fish at riverbanks', copperAxe: 'Four wood & fiber per harvest', ironPickaxe: 'Mine crystal · triple ore' };
 export const panelDefaults: Record<Panel, Selection> = { craft: 'axe', build: 'home', farm: 'wheat', bag: 'wood' };
 export function materialCost(state: GameState, cost: Cost, output = false): string {
   return `<div class="material-cost" aria-label="${output ? 'Yield' : 'Materials required'}">${Object.entries(cost).map(([key, needed]) => {
@@ -28,12 +28,12 @@ export function workshopMarkup(state: GameState, id: PlayerId, panel: Panel, sel
     const selected = TOOLS.find(t => t.id === selection) || TOOLS[0];
     grid = TOOLS.map(t => tile(t.id, t.name, 'tools', '', local.tools.includes(t.id))).join('');
     const owned = local.tools.includes(selected.id), prerequisite = selected.requires && !local.tools.includes(selected.requires);
-    detail = `${art('tools', selected.id, 'detail-art')}<h3>${selected.name}</h3><p>${effects[selected.id]}</p>${materialCost(state, selected.cost)}${prerequisite ? `<p class="requirement">${icon('link')}Requires ${TOOLS.find(t => t.id === selected.requires)!.name.toLowerCase()}</p>` : ''}<button class="button primary" data-tool="${selected.id}" aria-label="Craft ${selected.name.toLowerCase()}" ${owned || prerequisite || !canAfford(state, selected.cost) || !connected ? 'disabled' : ''}>${owned ? `${icon('check')}Owned` : !canAfford(state, selected.cost) ? 'Missing materials' : 'Craft'}</button>`;
+    detail = `${art('tools', selected.id, 'detail-art')}<h3>${selected.name}</h3><p>${selected.description}</p>${materialCost(state, selected.cost)}${prerequisite ? `<p class="requirement">${icon('link')}Requires ${TOOLS.find(t => t.id === selected.requires)!.name.toLowerCase()}</p>` : ''}<button class="button primary" data-tool="${selected.id}" aria-label="Craft ${selected.name.toLowerCase()}" ${owned || selected.station || prerequisite || !canAfford(state, selected.cost) || !connected ? 'disabled' : ''}>${owned ? `${icon('check')}Owned` : selected.station ? `Use ${STATIONS[selected.station].name.toLowerCase()}` : !canAfford(state, selected.cost) ? 'Missing materials' : 'Craft'}</button>`;
   }
   if (panel === 'build') {
     const b = BUILDINGS.find(b => b.id === selection) || BUILDINGS[0];
     grid = BUILDINGS.map(b => tile(b.id, b.name, 'buildings')).join('');
-    detail = `${art('buildings', b.id, 'detail-art')}<h3>${b.name}</h3><p>${b.rooms.length} furnished rooms${b.style === 'dock' ? ' · Riverbank' : ''}</p>${materialCost(state, b.cost)}<button class="button primary" data-blueprint="${b.id}" aria-label="Choose blueprint: ${b.name}" ${local.location || !connected ? 'disabled' : ''}>${local.location ? 'Build outdoors' : canAfford(state, b.cost) ? 'Place' : 'Preview'}</button>`;
+    detail = `${art('buildings', b.id, 'detail-art')}<h3>${b.name}</h3><p>${b.description}</p>${materialCost(state, b.cost)}<button class="button primary" data-blueprint="${b.id}" aria-label="Choose blueprint: ${b.name}" ${local.location || !connected ? 'disabled' : ''}>${local.location ? 'Build outdoors' : canAfford(state, b.cost) ? 'Place' : 'Preview'}</button>`;
     const nearby = !local.location && state.buildings.find(b => distance(local, entrance(b)) <= 2.5);
     if (nearby) footer = `<button class="text-action" data-action="confirm-dismantle">${icon('rotate-ccw')}Dismantle ${buildingDefinition(nearby.kind).name.toLowerCase()}</button>`;
   }

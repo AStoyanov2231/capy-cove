@@ -20,17 +20,24 @@ The in-game HUD uses generated low-poly resource, tool and building icons. Open 
 ### A renewable sandbox
 
 - **Gathering:** wood, stone, oranges, fiber and wild seeds need no tool. Ordinary resources renew after 25 simulation seconds; ores after 45. Resources covered by buildings return when the building is dismantled. Nodes wait to renew if a player is standing on them.
-- **Crafting:** stone axe, stone pickaxe, garden hoe, fishing rod, copper axe and iron pickaxe. Tools improve yields, unlock ores and never break. Basic tools use renewable hand-gathered materials, so progression has no consumable-tool dependency loop.
-- **Fishing:** take a rod to a dry riverbank, cast with E, wait three seconds for the bite and reel within five seconds. Moving cancels the cast. No bait is consumed. Highland and snow rivers yield trout; other rivers yield river fish. Every third catch brings a pearl.
+- **Crafting:** stone axe, stone pickaxe, garden hoe and starter rod remain hand-craftable and never break. Copper axes and iron pickaxes require the smithy's forge, anvil, workbench and grindstone. The dock produces hooks, nets and specialized fishing kits. All inputs are renewable, with no starter-tool dependency loop.
+- **Fishing:** use a starter rod at a dry riverbank or dock deck, cast with E, wait three seconds for the bite and reel within five seconds. Moving cancels the cast. No bait is consumed. Highland and snow rivers yield trout; other rivers yield river fish. Every third catch brings a pearl. A specialized kit doubles catches for twelve uses between dock repairs; a worn kit falls back to the always-working starter rod.
 - **Farming:** use Farm with a crafted hoe to plant wheat or carrots on open meadow or forest soil. Crops water themselves, mature in 45 simulation seconds, and yield three crops plus two seeds. Wild seed nodes replenish even if every stored seed is spent.
-- **Building:** select a blueprint, walk to position the highlighted foundation north of you, and choose **Place building**. Host rules enforce costs, spacing, terrain slope, dry foundations and accessible entrances. Docks and boathouses need a riverbank. Dismantling from the front door refunds all construction materials; occupied buildings cannot be removed.
-- **Independent interiors:** press E at a front door to transition into a furnished cutaway room. Side doors lead to the building’s other rooms. The front doorway in each room leads outside. Each player has their own location, view and camera, so one can craft indoors while the other gathers outdoors. Walls and furniture have authoritative collision.
+- **Building:** select a blueprint and walk to position its full-model preview north of you. Press **R** or tap Rotate for clockwise quarter turns, then choose **Place building**. The host validates rotated foundations, exterior parts, door clearance, terrain, costs and spacing. Docks place their rear and pier over water with their entrance on land. Rotation is permanent after placement.
+- **Independent interiors:** E at a rotated entrance transitions only your view into that building's authored room. The front doorway leads outside. One player can use a station indoors while the other gathers or uses another building. Room dimensions and furniture footprints drive authoritative collision, camera framing and the minimap.
 
-### Twenty furnished buildings
+### Six functional buildings
 
-Home house, farmstead, water dock, workshop, forest cottage, greenhouse, bakery, smithy, mountain lodge, library, cozy inn, windmill, boathouse, apothecary, observatory, tea house, warehouse, pottery studio, bathhouse and island museum.
+- **Home house:** two functional beds, a hearth, supper furniture and a shared storage chest. Both players resting in distinct beds skips night.
+- **Farmstead:** food crates, sacks, baskets and sorting furniture. Explicitly deposit or withdraw farm food from its shared local store.
+- **Water dock:** a stilted fishing workshop and pier. Make hooks, weave nets, assemble specialized fishing kits and repair their bonus at the appropriate station.
+- **Greenhouse:** six individually plantable indoor beds, seed storage and potting furniture. Crops grow without outdoor biome restrictions and return more seeds than planting consumes.
+- **Smithy:** smelt ore into bars at the forge, shape heads at the anvil, assemble at the workbench and finish advanced tools at the grindstone.
+- **Observatory:** a tall, open-roofed telescope silhouette and star chamber. At night, search the sky, hold a cluster in the reticle and record twelve shared zodiac-inspired discoveries.
 
-Every building has three themed furnished rooms; the inn has four. Furniture is scenery with collision, not a furniture-placement editor or a separate production machine. Tools can be crafted indoors or outdoors.
+Every building has one distinctive room and its own shared storage. Stations consume only backpack materials, never silently pull from building stores. Four-job station queues continue while players explore, with two ready-output slots. Completed products wait safely when output space or backpack capacity is full. Personal tools and repairs must be collected by their owner; material outputs can be collected by either player.
+
+Dismantling requires empty storage, no jobs, harvested plots, no occupants and space for the entire construction refund. Nothing is silently discarded. The ten-minute day/night cycle pauses with the session. Sleep changes the sky to dawn, not production or crop timers. See `docs/BUILDINGS.md` for the full design and safety rules.
 
 ### Procedural geography
 
@@ -43,9 +50,9 @@ Each host generates a random seed for a **finite 256 × 256 world**, substantial
 - Cascading highlands: elevation, river cascades, iron and crystal.
 - Frostpine peaks: snowy ridges, iron and crystal.
 
-All raw materials have renewable sources. No tool or recipe requires a finite quest reward. Sessions currently allow 100 buildings, 200 crop plots and 9,999 units of each inventory material. Inventory limits are storage caps, not a depletion of the world’s resources.
+All raw materials have renewable sources. No tool or recipe requires a finite quest reward. Sessions currently allow 100 buildings, 200 outdoor crop plots, six beds per greenhouse and 9,999 units of each backpack material. Inventory limits are storage caps, not a depletion of the world’s resources.
 
-The host can open the Game menu and enable **Builder test mode** while testing. It fills the shared bag, makes crafting and building costs free, and shows an active status badge. Use **Return to normal resources** in the same menu to restore the bag from before testing; buildings and tools already created remain in the session.
+The host can open the Game menu and enable **Builder test mode** while testing. It fills the shared bag, makes crafting and building costs free, and shows an active status badge. Use **Return to normal resources** in the same menu to restore the bag from before testing; buildings, tools, local storage, production jobs and discoveries already created remain in the session. Placement, station proximity, queue capacity and storage safety still apply.
 
 ## Controls
 
@@ -55,6 +62,7 @@ The host can open the Game menu and enable **Builder test mode** while testing. 
 | Gather / harvest / fish / use doors | E or Space | Context action button |
 | Craft / Build / Farm / Bag | C / B / G / I | Hotbar icons |
 | Expand / collapse map | M or click map | Tap map |
+| Rotate placement clockwise | R, only while placing | Rotate button |
 | Cancel menu or blueprint | Escape | Close / cancel button |
 | Send a heart | H | Heart button |
 | Zoom | Mouse wheel | Default camera framing |
@@ -81,7 +89,7 @@ npm run test:e2e   # Real browser WebRTC peers and local signaling
 npm run preview
 ```
 
-`tests/game.test.ts` covers the sandbox rules and protocol. `tests/adventure.e2e.ts` exercises construction, independent interior rooms and farming through DOM keyboard controls. The multiplayer scenarios cover readiness, movement, pickup synchronization, third-player rejection, disconnect/rejoin and mobile controls. Builder test mode is an explicit host-only, reversible testing control; it does not provide teleportation or client-side authority. See `docs/QUALITY.md` for what was actually verified for this change; test definitions are not evidence that they passed.
+`tests/game.test.ts` covers the sandbox rules and protocol. `tests/buildings.test.ts` adds rotation, furniture access, storage, production, ownership, sleep, greenhouse and astronomy scenarios. `tests/adventure.e2e.ts` exercises placement rotation, independent indoor storage and outdoor farming through DOM controls. The multiplayer scenarios cover readiness, movement, pickup synchronization, third-player rejection, disconnect/rejoin and mobile controls. Builder test mode is an explicit host-only, reversible testing control; it does not provide teleportation or client-side authority. See `docs/QUALITY.md` for what was actually verified for this change; test definitions are not evidence that they passed.
 
 ## Architecture
 
@@ -89,7 +97,7 @@ npm run preview
 src/
   main.ts              Session lifecycle and dependency wiring
   game/
-    schema.ts          Version 2 Zod wire types and bounded commands
+    schema.ts          Version 4 Zod wire types and bounded commands
     content.ts         Recipes, materials, buildings, rooms, furniture footprints
     geography.ts       Seeded biomes, terrain height and renewable resource nodes
     engine.ts          Browser-independent authoritative simulation
@@ -98,7 +106,8 @@ src/
     session.ts         Peer lifecycle, handshakes, capacity and protocol routing
   render/
     renderer.ts        Camera, local interior switching, interpolation and previews
-    world.ts           Procedural scenery, architecture and furnished rooms
+    world.ts           Procedural scenery and building-renderer exports
+    buildings.ts       Data-driven shells, exterior parts and functional room models
     capybara.ts        Cosmetic models and animation
     batching.ts        Static material-based mesh batching
     finish.ts          Adaptive postprocessing and water/wind materials
@@ -106,6 +115,8 @@ src/
   ui/
     interface.ts       Setup, lobby, surroundings, sandbox menus and dialogs
     workshop.ts        Icon catalogs and selected-item details
+    building-use.ts    Storage, production, plots, sleep and telescope views
+    building-use.css   Responsive furniture-interaction surfaces
     art.ts             Base-path-aware generated icon references
     hud.css            Responsive icon HUD and nine-slice menu frames
     minimap.ts         Seeded world map and collision-aligned room maps
@@ -113,9 +124,9 @@ src/
     icons.ts           Selected Lucide icons and escaping
 ```
 
-The host owns all gameplay. Guests send bounded movement vectors and enumerated intent, never positions, inventory totals, placement coordinates or room identifiers. Host rules resolve interaction proximity, resource readiness, costs, tool requirements, placement and room transitions. Protocol v3 replaces the old quest protocol and includes the reversible builder test-mode state; old clients are not compatible.
+The host owns all gameplay. Guests send bounded movement vectors, quarter-turn selections, telescope aim and enumerated intent, never player positions, inventory totals, placement coordinates or output totals. Host rules resolve interaction proximity, resource readiness, costs, tool requirements, placement and room transitions. Protocol v4 includes rotation, local storage, production, indoor plots, day/night activity and constellation progress, retaining the reversible builder test mode. Old clients are not compatible and must reload.
 
-Simulation runs at 30 fixed steps/second, snapshots at 10/second and input refreshes at 20/second. Short stalls use bounded catch-up; stale inputs expire. Disconnects pause simulation time, crops and resource regeneration. Rejoining restores the guest’s tools, room and progress while the host remains online.
+Simulation runs at 30 fixed steps/second, snapshots at 10/second and input refreshes at 20/second. Short stalls use bounded catch-up; stale inputs expire. Disconnects pause simulation time, production, crops, sky time and resource regeneration. Rejoining retains the guest's tools, interior and shared progress while the host remains online; sleep and telescope activity are cleared.
 
 Rendering consumes the same terrain sampling and furniture footprints as the engine. Rounded capybaras, layered tree canopies, beveled architecture, grass, flowers, butterflies and flowing water remain real 3D scenery. Static meshes batch by material; understory and gather particles are instanced, and distant resource models are culled. Grass clears under placed foundations. Warm sun, cool fill and environment reflections combine with restrained bloom, desktop contact occlusion and antialiasing. Sustained slow frames disable postprocessing and reduce resolution and shadow size. Reduced motion freezes ambient effects. Local view transitions never change another player’s view.
 

@@ -28,7 +28,7 @@ describe('sandbox rules', () => {
     advance(engine, 0.4); sandboxAction(state, 'p1', { type: 'craft', tool: 'axe' });
     expect(state.players.p1!.tools).toContain('axe');
     expect(state.inventory).toEqual(Object.fromEntries(Object.keys(before).map(kind => [kind, 9999])));
-    advance(engine, 0.4); sandboxAction(state, 'p1', { type: 'build', kind: 'home' });
+    advance(engine, 0.4); sandboxAction(state, 'p1', { type: 'build', kind: 'home', rotation: 0 });
     expect(state.buildings).toHaveLength(1);
     engine.setTestMode(false);
     expect(state.testMode).toBe(false);
@@ -52,12 +52,12 @@ describe('sandbox rules', () => {
   it('builds, enters rooms independently, blocks furniture and refunds dismantling', () => {
     const engine = game(), state = engine.state, p = state.players.p1!, other = state.players.p2!;
     const before = { ...state.inventory }; expect(placementIssue(state, p, 'home')).toBeNull();
-    sandboxAction(state, 'p1', { type: 'build', kind: 'home' }); expect(state.buildings).toHaveLength(1);
+    sandboxAction(state, 'p1', { type: 'build', kind: 'home', rotation: 0 }); expect(state.buildings).toHaveLength(1);
     const b = state.buildings[0]; Object.assign(p, entrance(b)); advance(engine, 0.4); interact(state, 'p1');
     expect(p.location).toEqual({ buildingId: b.id, room: 0 }); expect(other.location).toBeNull();
     const previous = other.x; engine.setInput('p2', { x: 1, z: 0 }); engine.tick(0.1); expect(other.x).toBeGreaterThan(previous);
-    Object.assign(p, { x: 4.5, z: 0 }); advance(engine, 0.4); interact(state, 'p1'); expect(p.location?.room).toBe(1);
-    const furniture = roomFurniture(buildingDefinition('home').rooms[1])[0];
+    expect(p.location?.room).toBe(0);
+    const furniture = roomFurniture(buildingDefinition('home').rooms[0])[0];
     p.x = furniture.x; p.z = furniture.z + furniture.depth / 2 + 0.4;
     const oldZ = p.z; movePlayer(p, { x: 0, z: -1 }, 0.1, state); expect(p.z).toBe(oldZ);
     Object.assign(other, entrance(b)); sandboxAction(state, 'p2', { type: 'dismantle' }); expect(state.buildings).toHaveLength(1);
@@ -66,10 +66,10 @@ describe('sandbox rules', () => {
   });
   it('rejects overlapping, unaffordable and non-waterfront construction', () => {
     const engine = game(), state = engine.state, p = state.players.p1!;
-    sandboxAction(state, 'p1', { type: 'build', kind: 'home' }); advance(engine, 0.4);
-    const remaining = { ...state.inventory }; sandboxAction(state, 'p1', { type: 'build', kind: 'home' }); expect(state.buildings).toHaveLength(1); expect(state.inventory).toEqual(remaining);
+    sandboxAction(state, 'p1', { type: 'build', kind: 'home', rotation: 0 }); advance(engine, 0.4);
+    const remaining = { ...state.inventory }; sandboxAction(state, 'p1', { type: 'build', kind: 'home', rotation: 0 }); expect(state.buildings).toHaveLength(1); expect(state.inventory).toEqual(remaining);
     Object.assign(p, { x: -30, z: 30 }); expect(placementIssue(state, p, 'dock')).toBeTruthy();
-    state.inventory.wood = 0; sandboxAction(state, 'p1', { type: 'build', kind: 'museum' }); expect(state.buildings).toHaveLength(1);
+    state.inventory.wood = 0; sandboxAction(state, 'p1', { type: 'build', kind: 'observatory', rotation: 0 }); expect(state.buildings).toHaveLength(1);
     expect(buildPosition(p)).toEqual({ x: -30, z: 22 });
   });
   it('grows crops and returns more seeds than planting consumes', () => {
@@ -97,13 +97,13 @@ describe('sandbox rules', () => {
 });
 describe('deterministic content and protocol', () => {
   it('varies seeds while guaranteeing every raw material, biome and furnished building', () => {
-    expect(BUILDINGS).toHaveLength(20); expect(new Set(BUILDINGS.map(b => b.id)).size).toBe(20);
-    for (const b of BUILDINGS) { expect(b.rooms.length).toBeGreaterThanOrEqual(3); for (const r of b.rooms) expect(roomFurniture(r)).toHaveLength(3); }
+    expect(BUILDINGS).toHaveLength(6); expect(new Set(BUILDINGS.map(b => b.id)).size).toBe(6);
+    for (const b of BUILDINGS) { expect(b.rooms).toHaveLength(1); expect(roomFurniture(b.rooms[0]).length).toBeGreaterThanOrEqual(6); }
     for (const seed of [1, 7241, 2000000000]) {
       const world = generateWorld(seed); expect(world).toEqual(generateWorld(seed));
       const kinds = new Set(world.items.map(n => n.kind));
       for (const k of ['wood', 'stone', 'fiber', 'seed', 'orange', 'sand', 'clay', 'iron', 'copper', 'crystal']) expect(kinds.has(k as never)).toBe(true);
-      for (const recipe of TOOLS) for (const k of Object.keys(recipe.cost)) expect(kinds.has(k as never)).toBe(true);
+      for (const recipe of TOOLS.filter(t => !t.station)) for (const k of Object.keys(recipe.cost)) expect(kinds.has(k as never)).toBe(true);
       expect(new Set(world.items.map(n => biomeAt(n.x, n.z, seed))).size).toBe(6);
       expect(world.items.every(n => !isWater(n.x, n.z, seed))).toBe(true);
       expect(Number.isFinite(terrainHeight(-120, -100, seed))).toBe(true);

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { ITEM_COLORS, buildingDefinition, roomFurniture, type BuildingDefinition, type Furniture, type RoomDefinition } from '../game/content';
+import { ITEM_COLORS } from '../game/content';
 import { BIOMES, biomeAt, generateWorld, randomGenerator, riverX, terrainHeight, waterHeight, type WorldItem } from '../game/geography';
-import type { Building } from '../game/schema';
+export { createBuilding, createInterior, updateInterior } from './buildings';
 import { block, material } from './capybara';
 import { batchStaticMeshes } from './batching';
 import { waterMaterial, windMaterial } from './finish';
@@ -17,7 +17,6 @@ function cylinder(parent: THREE.Object3D, color: string, x: number, y: number, z
 function cone(parent: THREE.Object3D, color: string, x: number, y: number, z: number, radius: number, height: number): THREE.Mesh {
   const mesh = new THREE.Mesh(coneGeometry, material(color)); mesh.position.set(x, y, z); mesh.scale.set(radius, height, radius); mesh.castShadow = true; parent.add(mesh); return mesh;
 }
-const windowGlow = new THREE.MeshStandardMaterial({ color: '#f5d394', emissive: '#eabb6a', emissiveIntensity: 0.24, roughness: 0.38 });
 function tree(parent: THREE.Group, biome: string, variant: number): void {
   const trunk = cylinder(parent, '#9a7850', 0, 1.05, 0, 0.29, 2.3); trunk.rotation.z = (variant % 3 - 1) * 0.07;
   for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; const root = block(parent, '#9a7850', [Math.cos(a) * 0.28, 0.13, Math.sin(a) * 0.28], [0.55, 0.2, 0.22]); root.rotation.y = -a; }
@@ -156,118 +155,6 @@ export function createWorld(seed = 7241): WorldScene {
   const cascade = new THREE.Mesh(fallGeo, fallMat); group.add(cascade); clocks.push(fallMat.userData.clock);
   for (let i = 0; i < 8; i++) block(group, '#dceade', [cascadeX - 2.4 + i * 0.7, cascadeBottom + 0.12, -53.6], [0.42, 0.1, 0.25], true);
   return { group, items, water, foam, grass, butterflies, clocks, decorations };
-}
-function windowFrame(group: THREE.Group, x: number, y: number, z: number): void {
-  const pane = block(group, '#f2cc84', [x, y, z], [1.1, 1.1, 0.08]); pane.material = windowGlow;
-  for (const dx of [-0.65, 0.65]) block(group, '#6c826d', [x + dx, y, z + 0.04], [0.3, 1.35, 0.12]);
-  block(group, '#eee0bd', [x, y, z + 0.08], [0.08, 1.2, 0.12]); block(group, '#eee0bd', [x, y, z + 0.08], [1.2, 0.08, 0.12]);
-  block(group, '#968062', [x, y - 0.7, z + 0.2], [1.7, 0.22, 0.42]);
-  for (const dx of [-0.5, 0, 0.5]) block(group, '#7b995f', [x + dx, y - 0.54, z + 0.2], [0.25, 0.3, 0.23], true);
-}
-export function createBuilding(building: Building, seed: number): THREE.Group {
-  const def = buildingDefinition(building.kind), group = new THREE.Group();
-  block(group, '#a49c85', [0, 0.12, 0], [8.2, 0.5, 6.2]);
-  block(group, def.color, [0, 1.85, 0], [7.8, 3.2, 5.8]);
-  const stoneBase = def.style === 'tower' || ['smithy', 'bathhouse', 'pottery'].includes(building.kind);
-  for (let i = 0; i < 8; i++) for (const side of [-1, 1]) {
-    block(group, stoneBase ? ['#aaa78e', '#b8b296'][i % 2] : '#a58b60', [-3.45 + i * 0.98, 0.43, side * 2.99], [0.94, 0.38, 0.18]);
-  }
-  if (def.style === 'barn' || def.style === 'dock') for (let i = 0; i < 9; i++) {
-    const x = -3.55 + i * 0.89; if (Math.abs(x) < 0.9) continue;
-    block(group, new THREE.Color(def.color).multiplyScalar(0.87), [x, 1.75, 2.94], [0.07, 2.5, 0.09]);
-  }
-  for (const x of [-3.8, 3.8]) for (const z of [-2.8, 2.8]) block(group, '#8b755a', [x, 1.9, z], [0.2, 3.4, 0.22]);
-  block(group, '#866749', [0, 1.27, 2.97], [1.4, 2.3, 0.14]);
-  block(group, '#e4c886', [0.46, 1.3, 3.08], [0.1, 0.1, 0.12], true);
-  block(group, '#d8c59f', [0, 0.12, 3.45], [2.1, 0.2, 1.1]);
-  windowFrame(group, -2.25, 2, 2.98); windowFrame(group, 2.25, 2, 2.98);
-  if (def.style === 'tower') {
-    cylinder(group, def.color, 0, 4, -0.7, 2.2, 2.2); cone(group, def.roof, 0, 5.9, -0.7, 2.9, 2.1);
-    for (const x of [-2.3, 2.3]) { const roof = block(group, def.roof, [x, 3.6, 0], [3.5, 0.3, 6.5]); roof.rotation.z = x < 0 ? 0.18 : -0.18; }
-  } else {
-    const pitch = def.style === 'barn' ? 0.7 : def.style === 'pagoda' ? 0.25 : 0.48;
-    const gableGeometry = new THREE.BufferGeometry();
-    gableGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
-      -3.9, 3.35, 2.91, 3.9, 3.35, 2.91, 0, 4.15 + Math.tan(pitch) * 2, 2.91,
-      3.9, 3.35, -2.91, -3.9, 3.35, -2.91, 0, 4.15 + Math.tan(pitch) * 2, -2.91,
-    ], 3));
-    gableGeometry.computeVertexNormals(); gableGeometry.userData.owned = true;
-    const gable = new THREE.Mesh(gableGeometry, material(def.color)); gable.castShadow = true; group.add(gable);
-    for (const side of [-1, 1]) {
-      const roof = block(group, def.roof, [side * 2, 4.15, 0], [4.65, 0.25, 6.65]); roof.rotation.z = -side * pitch;
-      if (def.style !== 'glass') for (let ix = 0; ix < 4; ix++) for (let iz = 0; iz < 6; iz++) {
-        const rx = 0.5 + ix * 0.99, rz = -2.7 + iz * 1.07;
-        const tile = block(group, new THREE.Color(def.roof).multiplyScalar(0.94 + (ix + iz) % 3 * 0.035), [side * rx, 4.15 + (2 - rx) * Math.tan(pitch) + 0.16, rz], [1.13, 0.12, 1.03]); tile.rotation.z = -side * pitch;
-      }
-      else for (let i = 0; i < 7; i++) { const seam = block(group, '#ddebd5', [side * 2, 4.29, -2.7 + i * 0.9], [4.65, 0.06, 0.06]); seam.rotation.z = -side * pitch; }
-    }
-    if (def.style === 'pagoda') { block(group, def.roof, [0, 5, 0], [4.6, 0.22, 4]); cone(group, def.roof, 0, 5.7, 0, 2.4, 1.1); }
-  }
-  if (def.style === 'glass') {
-    for (const x of [-3, -1.5, 1.5, 3]) block(group, '#d1e5d5', [x, 2.7, 3.01], [0.95, 0.95, 0.07]);
-    for (const x of [-3.7, 3.7]) block(group, '#89b7a7', [x, 1.8, 0], [0.25, 2.4, 4.8]);
-  }
-  if (def.style === 'dock') {
-    for (let i = 0; i < 7; i++) block(group, i % 2 ? '#b19870' : '#c3ad84', [-5, 0.3, -2.7 + i * 0.9], [2, 0.18, 0.85]);
-    for (const z of [-2.7, 2.7]) cylinder(group, '#826c4c', -5.7, 0.5, z, 0.16, 1.7);
-    cylinder(group, '#9a7853', -4.8, 0.9, 1.6, 0.45, 1);
-  }
-  if (building.kind === 'mill') {
-    const sails = new THREE.Group(); sails.name = 'sails'; sails.position.set(0, 4.6, 2.65);
-    for (let i = 0; i < 4; i++) { const blade = new THREE.Group(); blade.rotation.z = i * Math.PI / 2; sails.add(blade); block(blade, '#e9d9af', [0.35, 1.7, 0], [0.6, 2.8, 0.12]); block(blade, '#857255', [0, 1.5, 0], [0.13, 3.3, 0.2]); }
-    group.add(sails);
-  }
-  if (['home', 'bakery', 'smithy', 'inn', 'pottery'].includes(building.kind)) block(group, '#9e9681', [2.4, 4.9, -1.5], [0.8, 2.1, 0.8]);
-  if (building.kind === 'farm') for (const x of [-5, 5]) { block(group, '#806745', [x, 0.15, 0], [1, 0.15, 4]); for (let i = 0; i < 5; i++) cone(group, '#c7b36a', x, 0.5, -1.5 + i * 0.7, 0.22, 0.7); }
-  if (building.kind === 'observatory') { const telescope = cylinder(group, '#c8aa70', 0, 6.8, 0, 0.25, 2.3); telescope.rotation.z = 0.9; }
-  const sails = group.getObjectByName('sails'); batchStaticMeshes(group, new Set(sails ? [sails] : []));
-  group.position.set(building.x, terrainHeight(building.x, building.z, seed), building.z); return group;
-}
-function furnish(group: THREE.Group, f: Furniture): void {
-  const object = new THREE.Group(); object.position.set(f.x, 0, f.z); group.add(object);
-  const wood = '#a88961', dark = '#786749', cloth = '#91a390';
-  const table = () => { block(object, wood, [0, 0.95, 0], [f.width, 0.18, f.depth]); for (const x of [-0.7, 0.7]) for (const z of [-0.45, 0.45]) block(object, dark, [x, 0.45, z], [0.12, 0.9, 0.12]); };
-  switch (f.kind) {
-    case 'bed': block(object, dark, [0, 0.3, 0], [2.5, 0.6, 2.7]); block(object, '#f3e7cb', [0, 0.67, 0], [2.3, 0.23, 2.5]); block(object, cloth, [0, 0.85, 0.4], [2.3, 0.13, 1.5]); block(object, '#faf0d9', [0, 0.9, -0.8], [1.8, 0.27, 0.5]); block(object, wood, [0, 0.85, -1.35], [2.6, 1.5, 0.12]); break;
-    case 'sofa': block(object, dark, [0, 0.25, 0], [2.5, 0.35, 1.5]); block(object, cloth, [0, 0.65, 0.1], [2.3, 0.4, 1.2]); block(object, cloth, [0, 1, -0.6], [2.5, 1.15, 0.3]); for (const x of [-1.1, 1.1]) block(object, cloth, [x, 0.9, 0], [0.3, 0.7, 1.5]); block(object, '#e5c794', [-0.6, 1, 0], [0.55, 0.5, 0.25]); break;
-    case 'shelf': for (const x of [-0.94, 0.94]) block(object, dark, [x, 1.3, -0.2], [0.14, 2.6, 0.8]); for (let y = 0.3; y < 2.7; y += 0.7) { block(object, wood, [0, y, -0.2], [2, 0.12, 0.85]); for (let i = 0; i < 6; i++) block(object, ['#a7795c', '#829989', '#c5b27c'][i % 3], [-0.7 + i * 0.27, y + 0.3, -0.15], [0.19, 0.5, 0.4]); } break;
-    case 'stove': block(object, '#8e9389', [0, 0.7, 0], [2, 1.4, 1.5]); block(object, '#514e43', [0, 0.6, 0.77], [1.3, 0.7, 0.03]); block(object, '#e5aa67', [0, 0.55, 0.8], [0.8, 0.22, 0.02]); cylinder(object, '#686e65', 0, 2.2, -0.4, 0.2, 1.8); break;
-    case 'sink': table(); block(object, '#e5e1d0', [0, 1.06, 0], [1.4, 0.2, 1]); block(object, '#89b4af', [0, 1.18, 0], [1.05, 0.05, 0.7]); cylinder(object, '#b4a47e', 0, 1.5, -0.5, 0.08, 0.6); break;
-    case 'barrel': cylinder(object, wood, 0, 0.75, 0, 0.7, 1.5); for (const y of [0.3, 1.2]) cylinder(object, '#777d6b', 0, y, 0, 0.72, 0.12); break;
-    case 'planter': block(object, '#b78362', [0, 0.35, 0], [2, 0.7, 1.5]); block(object, '#796443', [0, 0.72, 0], [1.8, 0.1, 1.3]); for (const x of [-0.6, 0, 0.6]) { cone(object, '#71915f', x, 1.2, 0, 0.4, 1); block(object, '#e3cfa0', [x, 1.65, 0], [0.17, 0.17, 0.17], true); } break;
-    case 'anvil': block(object, wood, [0, 0.4, 0], [1.6, 0.8, 1.2]); block(object, '#65706d', [0, 1, 0], [1.5, 0.5, 0.7]); block(object, '#89918a', [0, 1.3, 0], [2, 0.18, 0.9]); break;
-    case 'telescope': { cylinder(object, dark, 0, 0.8, 0, 0.12, 1.6); const tube = cylinder(object, '#c2ab77', 0, 1.8, 0, 0.32, 1.8); tube.rotation.z = 0.9; for (const x of [-0.6, 0.6]) { const leg = block(object, dark, [x, 0.5, 0], [0.15, 1.2, 0.15]); leg.rotation.z = x; } break; }
-    case 'bath': block(object, '#c3c7b5', [0, 0.5, 0], [2.5, 1, 2.7]); block(object, '#82b3af', [0, 1.03, 0], [2.1, 0.06, 2.3]); for (const x of [-1.15, 1.15]) block(object, '#e2e0ca', [x, 1, 0], [0.2, 0.2, 2.7]); break;
-    case 'loom': table(); for (const x of [-0.7, 0.7]) block(object, dark, [x, 1.7, 0], [0.13, 1.6, 0.13]); block(object, wood, [0, 2.4, 0], [1.6, 0.12, 0.12]); block(object, '#d5c39b', [0, 1.65, 0], [1.2, 1.3, 0.05]); for (let x = -0.5; x < 0.6; x += 0.2) block(object, '#acb99b', [x, 1.6, 0.04], [0.06, 1.3, 0.03]); break;
-    case 'display': table(); block(object, '#d4c49e', [0, 1.15, 0], [1.2, 0.15, 0.9]); block(object, '#a6a0bd', [0, 1.6, 0], [0.43, 0.65, 0.4], true); break;
-    case 'desk': table(); block(object, '#efe7ce', [0.3, 1.07, 0.1], [0.75, 0.04, 0.5]); block(object, '#a57f5f', [-0.5, 1.1, 0], [0.4, 0.12, 0.6]); cylinder(object, '#e9c784', -0.65, 1.45, -0.3, 0.12, 0.7); break;
-    case 'table': table(); cylinder(object, '#e7dcc2', 0, 1.1, 0, 0.35, 0.08); block(object, '#dba052', [0, 1.22, 0], [0.16, 0.16, 0.16], true); break;
-  }
-}
-export function createInterior(def: BuildingDefinition, room: RoomDefinition, index: number): THREE.Group {
-  const group = new THREE.Group();
-  block(group, '#786c56', [0, -0.25, 0], [12.5, 0.5, 10.5]);
-  for (let i = 0; i < 20; i++) block(group, i % 3 ? '#bca27a' : '#c8b18a', [0, 0.015, -4.75 + i * 0.5], [12, 0.04, 0.47]);
-  block(group, '#e8d9b8', [0, 1.65, -5], [12.3, 3.3, 0.25]);
-  block(group, '#9c8866', [0, 0.24, -4.8], [12, 0.35, 0.15]);
-  for (const side of [-1, 1]) {
-    for (const z of [-3, 3]) block(group, '#d7c5a2', [side * 6, 0.65, z], [0.22, 1.3, 4]);
-    for (const z of [-1, 1]) block(group, '#917758', [side * 5.98, 1.35, z], [0.28, 2.7, 0.22]);
-    block(group, '#917758', [side * 6, 2.65, 0], [0.28, 0.18, 2.2]);
-    const open = side === -1 ? index > 0 : index < def.rooms.length - 1;
-    block(group, open ? '#78998b' : '#aa9574', [side * 5.98, open ? 0.04 : 1.2, 0], [0.2, open ? 0.08 : 2.4, 1.7]);
-  }
-  for (const x of [-3.7, 3.7]) block(group, '#c6b28e', [x, 0.25, 5], [4.7, 0.5, 0.23]);
-  block(group, '#78998b', [0, 0.04, 4.8], [2.5, 0.08, 0.7]);
-  block(group, '#879985', [0, 0.07, 0], [4.2, 0.04, 4]);
-  for (const x of [-1.85, 1.85]) block(group, '#cbd0aa', [x, 0.095, 0], [0.07, 0.02, 3.65]);
-  windowFrame(group, -2.9, 2.1, -4.8); windowFrame(group, 2.9, 2.1, -4.8);
-  roomFurniture(room).forEach(f => furnish(group, f));
-  // Wall lights and their warm pools belong to the room, not to the outdoor world.
-  for (const x of [-5.2, 5.2]) { block(group, '#997e52', [x, 2, -4.65], [0.35, 0.65, 0.32]); block(group, '#f1d292', [x, 2.1, -4.43], [0.22, 0.37, 0.08]); }
-  batchStaticMeshes(group, new Set());
-  const light = new THREE.PointLight('#ffcd85', 12, 15, 2); light.position.set(0, 4, -2); group.add(light);
-  return group;
 }
 /** Dispose only local assets, never the shared capybara/material/primitive caches. */
 export function disposeWorldObject(root: THREE.Object3D): void {

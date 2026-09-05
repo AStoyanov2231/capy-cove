@@ -81,7 +81,7 @@ The world uses real mesh geometry and a higher-angle orthographic camera. Blende
 
 The desktop finishing pipeline adds contact occlusion, restrained bloom, color grading and antialiasing. Coarse-pointer devices omit occlusion. Sustained slow frames disable postprocessing and lower resolution and shadow size. Gather feedback uses a bounded instanced particle pool. These are quality measures, not a verified frame-rate guarantee.
 
-Entering a building switches only the local camera to a centered room view against a dark green surround, with a short fade. Side doors connect rooms. Remote players are visible only in the same outdoor or room instance. Reduced-motion preferences disable ambient animation, gather particles, bite animation and room fades. Camera movement and player interpolation use time-based exponential smoothing.
+Entering a building switches only the local camera to its authored single-room view against a dark green surround, with a short fade. Room dimensions determine framing. Remote players are visible only in the same outdoor or building instance. A shared day/night cycle changes outdoor light; functional room props remain legible at night. Reduced-motion preferences disable ambient animation, gather particles, bite animation and room fades. Camera movement and player interpolation use time-based exponential smoothing.
 
 ## Shapes
 
@@ -94,11 +94,14 @@ Controls have modest rounded corners; sculpted menu borders use reusable nine-sl
 - **Surroundings:** current biome or room name and a compact friend indicator. Friend location is available through its accessible label and tooltip. No coordinates, idle guidance, quests or completion UI.
 - **Shared bag:** synchronized materials, four quick icon counts, and a full icon catalog in Bag. The selected resource reveals its name, quantity and source. Tools are personal.
 - **Recipes:** an icon grid and one selected detail pane with a name, short effect, pictorial material costs and explicit prerequisites. Shortages use counts and a minus mark, not color alone. Owned tools receive a checkmark.
-- **Building preview:** a green or terracotta foundation, plus a textual placement reason and host-validated confirmation. Color is never the only validity signal.
+- **Building preview:** a translucent full building and complete footprint in green or terracotta, plus a placement reason and host-validated confirmation. R and the placement-only Rotate control turn the entire model clockwise by 90 degrees. The door, pier and exterior parts turn together; minimap geometry reflects committed rotation. Color is never the only validity signal.
+- **Functional interiors:** six authored room layouts with different dimensions, furniture poses and materials. Beds lead the home, food crates the farmstead, a fishing bench the dock, planting beds the greenhouse, forge/anvil the smithy, and a large telescope the observatory. Chunky components carry each purpose without dense decoration.
+- **Furniture interactions:** a small floor marker identifies the nearest usable access point. E opens a proximity-bound storage, station or plot dialog, or starts resting/observing. Controls name concrete actions; production uses a selected recipe, pictorial costs, progress and explicit collection. Storage shows bag and building counts with an explicit amount.
+- **Telescope:** a protected-focus sky view uses data-drawn stars and constellation linework, a central reticle, pan controls and a shared discovery chart. Its deep-blue sky is functional, not a replacement UI palette.
 - **Map:** cached seed-derived biome geography outdoors; footprint-aligned furniture and doorways indoors. Only players in the same interior instance appear on its room map.
 - **Interaction prompt:** action text is computed from authoritative proximity. Hide the prompt when idle or browsing menus; show the relevant key only when actionable. Resource renewal times never appear on the HUD. Waiting for a fish disables the action until the bite.
 - **Dialogs:** native modal focus, Escape dismissal, a visible close button, and clear primary/secondary choices.
-- **Icons:** 48 generated transparent WebP pictograms cover resources, tools, actions and all 20 buildings. Two generated frames provide the menu and hotbar surfaces. Shipping assets live in `public/art/`; complete prompts and provenance live in `docs/art-source/PROMPTS.md`. Icons are decorative inside semantically labeled HTML controls. Lucide remains for small utility actions. No emoji substitutions.
+- **Icons:** the retained generated transparent WebP pictograms cover resources, tools, actions and the six approved buildings. Removed building icons no longer ship. Small authored vector glyphs distinguish processed bars, tool components, hooks and nets; the specialized kit reuses the rod artwork. Two generated frames provide the menu and hotbar surfaces. Shipping assets live in `public/art/`; complete prompts and provenance live in `docs/art-source/PROMPTS.md`. Icons are decorative inside semantically labeled HTML controls. Lucide remains for small utility actions. No emoji substitutions.
 
 ## Do's and Don'ts
 

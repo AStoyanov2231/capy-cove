@@ -1,5 +1,6 @@
 import './style.css';
 import './ui/hud.css';
+import './ui/building-use.css';
 import { InputController } from './game/input';
 import { bothConnected } from './game/engine';
 import type { Profile } from './game/schema';
@@ -36,11 +37,12 @@ async function boot(): Promise<void> {
       input.setActive(false); renderer.reset(ui.currentProfile); ui.reset(true);
     },
     interact: () => session?.command({ type: 'interact' }),
+    stopMoving: () => input.clear(),
     emote: () => session?.command({ type: 'emote' }),
     sound: () => audio.toggle(),
     testMode: enabled => session?.setTestMode(enabled),
     command: command => session?.command(command),
-    blueprint: kind => renderer.selectBuilding(kind),
+    blueprint: (kind, rotation) => renderer.selectBuilding(kind, rotation),
   });
   renderer.onFrame = project => ui.positionLabels(project);
   renderer.onContextLost = () => {
@@ -48,7 +50,7 @@ async function boot(): Promise<void> {
     ui.error('The graphics context was lost. Reload this page to restore it. Reloading the host closes the current island.');
   };
   input.onMove = value => session?.input(value);
-  input.onInteract = () => session?.command({ type: 'interact' });
+  input.onInteract = () => ui.interact();
   input.onEmote = () => session?.command({ type: 'emote' });
 
   async function connect(profile: Profile): Promise<void> {

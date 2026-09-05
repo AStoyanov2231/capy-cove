@@ -36,7 +36,7 @@ async function walkTo(page: Page, id: 'p1' | 'p2', target: { x: number; z: numbe
   await page.waitForTimeout(200);
 }
 
-test('two friends build, explore independent rooms, and grow renewable crops', async ({ browser }) => {
+test('two friends rotate, store materials independently indoors, and grow crops', async ({ browser }) => {
   test.setTimeout(240000);
   // A small viewport reduces software-renderer load without changing game rules.
   const hostContext = await browser.newContext({ viewport: { width: 960, height: 720 }, deviceScaleFactor: process.env.CI ? 0.5 : 1 });
@@ -55,12 +55,17 @@ test('two friends build, explore independent rooms, and grow renewable crops', a
   await host.getByRole('button', { name: 'I’m ready to explore' }).click();
   await expect(host.getByRole('heading', { name: 'Sunlit meadows', exact: true })).toBeVisible();
   await host.locator('[data-panel="build"]').click();
-  await expect(host.locator('.building-grid [data-select]')).toHaveCount(20);
+  await expect(host.locator('.building-grid [data-select]')).toHaveCount(6);
   await host.locator('[data-blueprint="home"]').click();
+  for (const rotation of [90, 180, 270, 0]) {
+    await host.keyboard.press('r');
+    await expect(host.locator('#build-placement')).toHaveAttribute('data-rotation', String(rotation));
+  }
   await expect(host.getByRole('button', { name: 'Place building', exact: true })).toBeEnabled();
   await host.getByRole('button', { name: 'Place building', exact: true }).click();
   await expect(host.locator('#bag-wood')).toHaveText('4');
   await expect(guest.locator('#bag-wood')).toHaveText('4');
+  await host.keyboard.press('Escape');
   await guest.locator('[data-panel="craft"]').click();
   await guest.locator('[data-select="hoe"]').click();
   await guest.getByRole('button', { name: 'Craft garden hoe', exact: true }).click();
@@ -73,14 +78,20 @@ test('two friends build, explore independent rooms, and grow renewable crops', a
   await walkTo(host, 'p1', { x: -2, z: 4.5 });
   await expect(host.locator('#interact-label')).toHaveText('Enter home house');
   await host.keyboard.press('e');
-  await expect(host.getByRole('heading', { name: 'Living room', exact: true })).toBeVisible();
+  await expect(host.getByRole('heading', { name: 'Hearth room', exact: true })).toBeVisible();
   await expect(guest.locator('#label-p1')).toHaveAttribute('data-location', 'building-0:0');
   await expect(guest.locator('#label-p2')).toHaveAttribute('data-location', 'outside');
   await walkTo(host, 'p1', { x: 0, z: 0 });
-  await walkTo(host, 'p1', { x: 4.8, z: 0 });
-  await expect(host.locator('#interact-label')).toHaveText('Enter kitchen');
+  await walkTo(host, 'p1', { x: 3.9, z: 2.6 });
+  await expect(host.locator('#interact-label')).toHaveText('Use home chest');
   await host.keyboard.press('e');
-  await expect(host.getByRole('heading', { name: 'Kitchen', exact: true })).toBeVisible();
+  await host.getByLabel('Material', { exact: true }).selectOption('stone');
+  await host.getByRole('button', { name: 'Deposit', exact: true }).click();
+  await expect(guest.locator('#bag-stone')).toHaveText('1');
+  await host.waitForTimeout(400);
+  await host.getByRole('button', { name: 'Withdraw', exact: true }).click();
+  await expect(guest.locator('#bag-stone')).toHaveText('2');
+  await host.getByRole('button', { name: 'Close Home chest', exact: true }).click();
   await host.screenshot({ path: 'test-results/sandbox-interior.png' });
   await expect(guest.locator('#friend-location')).toHaveAttribute('title', /inside home house/);
   await guest.waitForTimeout(Math.max(0, CROP_SECONDS * 1000 + 1500 - (Date.now() - plantedAt)));

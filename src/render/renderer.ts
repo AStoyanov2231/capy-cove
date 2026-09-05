@@ -2,18 +2,22 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { SceneFinish } from './finish';
 import { GatherParticles } from './particles';
-import type { BuildingKind, GameState, PlayerId, Profile } from '../game/schema';
+import type { Building, BuildingKind, GameState, PlayerId, Profile, Rotation } from '../game/schema';
 import { CROP_SECONDS, CROPS, ITEM_COLORS, buildingDefinition } from '../game/content';
-import { buildPosition, buildingContains, canAfford, nearestInteraction, nodeCovered, placementIssue } from '../game/engine';
+import { buildPosition, buildingContains, buildingElevation, buildingRects, canAfford, dayFraction, deckHeight, nearestInteraction, nodeCovered, placementIssue } from '../game/engine';
 import { generateWorld, isWater, riverX, terrainHeight, waterHeight } from '../game/geography';
 import { animateCapybara, block, createCapybara, type CapyModel } from './capybara';
-import { createBuilding, createInterior, createWorld, disposeWorldObject, type WorldScene } from './world';
+import { createBuilding, createInterior, createWorld, disposeWorldObject, updateInterior, type WorldScene } from './world';
 
 export class IslandRenderer {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.OrthographicCamera(-30, 30, 30, -30, 0.1, 240);
   private sun = new THREE.DirectionalLight('#ffe3ac', 2.65);
+  private hemisphere = new THREE.HemisphereLight('#e6f5df', '#72a792', 1.55);
+  private dayColor = new THREE.Color('#b4d9cc');
+  private nightColor = new THREE.Color('#263c58');
+  private skyColor = new THREE.Color();
   private finish: SceneFinish;
   private environment: THREE.WebGLRenderTarget;
   private particles = new GatherParticles();
@@ -28,8 +32,10 @@ export class IslandRenderer {
   private cropModels = new Map<string, THREE.Group>();
   private interior: THREE.Group | null = null;
   private viewKey = 'outside';
-  private ghost: THREE.Mesh;
+  private ghost = new THREE.Group();
+  private ghostTint: THREE.MeshBasicMaterial | null = null;
   private selectedBuilding: BuildingKind | null = null;
+  private selectedRotation: Rotation = 0;
   private fishingLine: THREE.Line;
   private bobber: THREE.Mesh;
   private models = new Map<PlayerId, { model: CapyModel; key: string; location: string }>();
@@ -60,7 +66,7 @@ export class IslandRenderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1;
     this.scene.background = new THREE.Color('#b4d9cc'); this.scene.fog = new THREE.Fog('#b4d9cc', 78, 145);
-    this.scene.add(new THREE.HemisphereLight('#e6f5df', '#72a792', 1.55));
+    this.scene.add(this.hemisphere);
     const fill = new THREE.DirectionalLight('#bce9e1', 0.55); fill.position.set(25, 22, -30); this.scene.add(fill);
     const studio = new RoomEnvironment(), pmrem = new THREE.PMREMGenerator(this.renderer);
     this.environment = pmrem.fromScene(studio, 0.06); this.scene.environment = this.environment.texture; this.scene.environmentIntensity = 0.3;
@@ -71,7 +77,6 @@ export class IslandRenderer {
     this.sun.shadow.normalBias = 0.08; this.sun.shadow.bias = -0.0002;
     this.scene.add(this.sun, this.sun.target, this.structures, this.crops, this.particles.mesh);
     this.world = createWorld(this.worldSeed); this.scene.add(this.world.group);
-    this.ghost = new THREE.Mesh(new THREE.BoxGeometry(8, 0.2, 6), new THREE.MeshBasicMaterial({ color: '#83b99b', transparent: true, opacity: 0.5, depthWrite: false }));
     this.ghost.visible = false; this.scene.add(this.ghost);
     const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(9), 3));
     this.fishingLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: '#eee2bf' })); this.fishingLine.frustumCulled = false; this.fishingLine.visible = false; this.scene.add(this.fishingLine);
@@ -87,7 +92,22 @@ export class IslandRenderer {
     const own = this.ensureModel('p1', profile); own.group.position.set(-2, 0, 8); own.group.rotation.y = 0.6; own.group.scale.setScalar(1.65);
     const friend = this.ensureModel('p2', { name: 'Friend', gender: 'female', fur: 'sand', accessory: 'flower' }); friend.group.position.set(1.1, 0, 7.6); friend.group.rotation.y = 0.4; friend.group.scale.setScalar(1.65);
   }
-  selectBuilding(kind: BuildingKind | null): void { this.selectedBuilding = kind; }
+  selectBuilding(kind: BuildingKind | null, rotation: Rotation = 0): void {
+    this.selectedRotation = rotation;
+    if (kind === this.selectedBuilding) { this.ghost.rotation.y = -THREE.MathUtils.degToRad(rotation); return; }
+    disposeWorldObject(this.ghost); this.ghost.clear(); this.ghostTint = null; this.selectedBuilding = kind;
+    if (!kind) { this.ghost.visible = false; return; }
+    const mock: Building = { id: 'preview', kind, rotation: 0, x: 0, z: 0, storage: {}, jobs: [], plots: [] };
+    const preview = createBuilding(mock, this.worldSeed); preview.position.set(0, 0, 0);
+    this.ghostTint = new THREE.MeshBasicMaterial({ color: '#8fc8a6', transparent: true, opacity: .36, depthWrite: false }); this.ghostTint.userData.owned = true;
+    preview.traverse(object => { if (object instanceof THREE.Mesh) { object.material = this.ghostTint!; object.castShadow = false; } });
+    this.ghost.add(preview);
+    for (const rect of buildingRects(mock, true)) {
+      const geometry = new THREE.BoxGeometry(rect.width, .08, rect.depth); geometry.userData.owned = true;
+      const footprint = new THREE.Mesh(geometry, this.ghostTint); footprint.position.set(rect.x, .05, rect.z); this.ghost.add(footprint);
+    }
+    this.ghost.rotation.y = -THREE.MathUtils.degToRad(rotation);
+  }
   update(state: GameState, localId: PlayerId): void {
     this.state = state; this.localId = localId;
     if (state.seed !== this.worldSeed) {
@@ -101,7 +121,7 @@ export class IslandRenderer {
       if (this.interior) { this.scene.remove(this.interior); disposeWorldObject(this.interior); this.interior = null; }
       if (local?.location) {
         const b = state.buildings.find(b => b.id === local.location!.buildingId);
-        if (b) { const def = buildingDefinition(b.kind); this.interior = createInterior(def, def.rooms[local.location.room], local.location.room); this.scene.add(this.interior); }
+        if (b) { const def = buildingDefinition(b.kind); this.interior = createInterior(def, def.rooms[0]); this.scene.add(this.interior); }
       }
       this.target.set(local?.location ? 0 : local?.x || 0, local?.location ? 0 : terrainHeight(local?.x || 0, local?.z || 0, state.seed), local?.location ? 0 : local?.z || 0);
       this.scene.background = new THREE.Color(this.interior ? '#426457' : '#b4d9cc');
@@ -121,6 +141,10 @@ export class IslandRenderer {
     }
     const radius = this.lobby ? 65 : 60;
     const target = nearestInteraction(state, localId);
+    if (this.interior && local?.location) {
+      const building = state.buildings.find(b => b.id === local.location!.buildingId);
+      if (building) updateInterior(this.interior, building, state, target?.type === 'furniture' ? target.id : undefined);
+    }
     for (const node of generateWorld(state.seed).items) {
       const object = this.world.items.get(node.id)!;
       if (object.visible && state.depleted[node.id] && !this.reduced && local && !local.location && Math.hypot(node.x - local.x, node.z - local.z) < 20) this.particles.emit(node.x, terrainHeight(node.x, node.z, state.seed), node.z, ITEM_COLORS[node.kind]);
@@ -157,7 +181,7 @@ export class IslandRenderer {
     for (const [id, object] of this.cropModels) if (!state.crops.some(c => c.id === id)) { object.removeFromParent(); this.cropModels.delete(id); this.renderer.shadowMap.needsUpdate = true; }
   }
   reset(profile: Profile): void {
-    this.state = null; this.lobby = true; this.zoom = 1; this.viewKey = 'outside'; this.selectedBuilding = null;
+    this.state = null; this.lobby = true; this.zoom = 1; this.viewKey = 'outside'; this.selectBuilding(null);
     if (this.interior) { this.scene.remove(this.interior); disposeWorldObject(this.interior); this.interior = null; }
     for (const object of this.buildingModels.values()) disposeWorldObject(object);
     this.structures.clear(); this.crops.clear(); this.buildingModels.clear(); this.cropModels.clear(); this.vegetationRoster = '';
@@ -177,7 +201,11 @@ export class IslandRenderer {
   private resize(): void {
     this.width = this.canvas.clientWidth; this.height = this.canvas.clientHeight; if (!this.width || !this.height) return;
     this.renderer.setSize(this.width, this.height, false); this.finish.resize(this.width, this.height);
-    const aspect = this.width / this.height, half = this.lobby ? (aspect < 1 ? 30 : 24) : this.interior ? Math.max(8.5, 9 / aspect) : 13 / this.zoom;
+    const aspect = this.width / this.height;
+    const building = this.state?.buildings.find(b => b.id === this.state?.players[this.localId]?.location?.buildingId);
+    const room = building ? buildingDefinition(building.kind).rooms[0] : null;
+    const roomHalf = room ? Math.max((room.width * .607 + room.depth * .794) * .42 + 2, (room.width * .794 + room.depth * .607) / (2 * aspect) + 1.5) : 9;
+    const half = this.lobby ? (aspect < 1 ? 30 : 24) : this.interior ? roomHalf : 13 / this.zoom;
     this.camera.left = -half * aspect; this.camera.right = half * aspect; this.camera.top = half; this.camera.bottom = -half;
     this.camera.clearViewOffset();
     if (this.lobby && aspect > 1.1) this.camera.setViewOffset(this.width, this.height, -this.width * 0.19, -this.height * 0.02, this.width, this.height);
@@ -199,17 +227,24 @@ export class IslandRenderer {
     const smooth = 1 - Math.exp(-dt * 15);
     for (const [id, { model }] of this.models) {
       const p = this.state?.players[id];
-      if (p) { model.group.position.x = THREE.MathUtils.lerp(model.group.position.x, p.x, smooth); model.group.position.z = THREE.MathUtils.lerp(model.group.position.z, p.z, smooth);
-        model.group.rotation.y += Math.atan2(Math.sin(p.angle - model.group.rotation.y), Math.cos(p.angle - model.group.rotation.y)) * smooth;
+      const b = p?.location ? this.state?.buildings.find(b => b.id === p.location!.buildingId) : null;
+      const bed = b && p?.resting ? buildingDefinition(b.kind).rooms[0].furniture.find(f => f.id === p.resting) : null;
+      if (p) { model.group.position.x = THREE.MathUtils.lerp(model.group.position.x, bed?.x ?? p.x, smooth); model.group.position.z = THREE.MathUtils.lerp(model.group.position.z, bed?.z ?? p.z, smooth);
+        const angle = bed ? 0 : p.angle;
+        model.group.rotation.y += Math.atan2(Math.sin(angle - model.group.rotation.y), Math.cos(angle - model.group.rotation.y)) * smooth;
       }
-      animateCapybara(model, this.reduced && !p?.moving ? 0 : time, p?.moving || false, !!p && !p.location && isWater(p.x, p.z, this.worldSeed), !!p && p.emoteUntil > (this.state?.time || 0));
-      model.group.position.y += p?.location ? 0.12 : terrainHeight(model.group.position.x, model.group.position.z, this.worldSeed);
+      const deck = this.state && !p?.location ? deckHeight(this.state, model.group.position.x, model.group.position.z) : null;
+      animateCapybara(model, bed || (this.reduced && !p?.moving) ? 0 : time, !bed && (p?.moving || false), !!p && !p.location && deck === null && isWater(p.x, p.z, this.worldSeed), !!p && p.emoteUntil > (this.state?.time || 0));
+      if (bed) model.eyes.forEach(eye => { eye.scale.y = .01; });
+      model.group.position.y += p?.location ? bed ? .98 : .12 : deck ?? terrainHeight(model.group.position.x, model.group.position.z, this.worldSeed);
     }
     this.ghost.visible = !!this.selectedBuilding && !!local && !local.location && !this.lobby;
     if (this.ghost.visible && local && this.state && this.selectedBuilding) {
-      const pos = buildPosition(local); this.ghost.position.set(pos.x, terrainHeight(pos.x, pos.z, this.worldSeed) + 0.2, pos.z);
-      const valid = !placementIssue(this.state, local, this.selectedBuilding) && canAfford(this.state, buildingDefinition(this.selectedBuilding).cost);
-      (this.ghost.material as THREE.MeshBasicMaterial).color.set(valid ? '#81b796' : '#d68b74');
+      const pos = buildPosition(local, this.selectedBuilding);
+      const shape = { ...pos, kind: this.selectedBuilding, rotation: this.selectedRotation };
+      this.ghost.position.set(pos.x, buildingElevation(shape, this.worldSeed), pos.z);
+      const valid = !placementIssue(this.state, local, this.selectedBuilding, this.selectedRotation) && canAfford(this.state, buildingDefinition(this.selectedBuilding).cost);
+      this.ghostTint?.color.set(valid ? '#81b796' : '#d67865');
     }
     this.fishingLine.visible = this.bobber.visible = !!local?.fishing && !indoors;
     if (local?.fishing) {
@@ -226,13 +261,17 @@ export class IslandRenderer {
         butterfly.position.set(origin.x + Math.sin(time * 0.45 + i) * 1.6, origin.y + Math.sin(time * 1.2 + i) * 0.35, origin.z + Math.cos(time * 0.4 + i) * 1.2);
         butterfly.rotation.y = time * 0.4 + i; butterfly.children.forEach((wing, j) => { wing.rotation.z = Math.sin(time * 12 + i) * (j ? -0.8 : 0.8); });
       });
-      this.buildingModels.forEach(object => { const sails = object.getObjectByName('sails'); if (sails) sails.rotation.z = time * 0.28; });
     }
     this.particles.update(dt, !indoors && !this.reduced);
     if (time - this.lastShadowUpdate > (this.lowPower ? 0.5 : 0.2)) {
       this.sun.position.copy(this.target).add(this.sunOffset); this.sun.target.position.copy(this.target);
       this.renderer.shadowMap.needsUpdate = true; this.lastShadowUpdate = time;
     }
+    const phase = this.state ? dayFraction(this.state) : .4;
+    const daylight = THREE.MathUtils.smoothstep(phase, .16, .24) * (1 - THREE.MathUtils.smoothstep(phase, .6, .7));
+    this.sun.intensity = (indoors ? .8 : .3) + daylight * 2.25;
+    this.hemisphere.intensity = (indoors ? .85 : .5) + daylight * 1.05;
+    if (!indoors) { this.skyColor.copy(this.nightColor).lerp(this.dayColor, daylight); (this.scene.background as THREE.Color).copy(this.skyColor); if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.copy(this.skyColor); }
     this.finish.render(dt);
     this.onFrame?.(id => { const model = this.models.get(id)?.model; if (!model?.group.visible) return null;
       const point = model.group.position.clone(); point.y += 2.05; point.project(this.camera);
@@ -240,5 +279,5 @@ export class IslandRenderer {
       return { x: (point.x + 1) * this.width / 2, y: (1 - point.y) * this.height / 2 };
     });
   }
-  dispose(): void { cancelAnimationFrame(this.frame); this.resizeObserver.disconnect(); this.finish.dispose(); this.environment.dispose(); this.particles.dispose(); disposeWorldObject(this.scene); this.fishingLine.geometry.dispose(); this.ghost.geometry.dispose(); this.bobber.geometry.dispose(); this.renderer.dispose(); }
+  dispose(): void { cancelAnimationFrame(this.frame); this.resizeObserver.disconnect(); this.finish.dispose(); this.environment.dispose(); this.particles.dispose(); disposeWorldObject(this.scene); this.fishingLine.geometry.dispose(); this.bobber.geometry.dispose(); this.renderer.dispose(); }
 }

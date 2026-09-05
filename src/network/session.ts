@@ -141,12 +141,13 @@ export class Session {
       if (!joined) return;
       const now = performance.now();
       if (msg.type === 'input') {
-        if (now - this.lastInput < 20) return;
+        if (now - this.lastInput < 20 && (msg.input.x !== 0 || msg.input.z !== 0)) return;
         this.lastInput = now;
-      } else {
+      } else if (msg.type !== 'stop-use') {
         if (now - this.lastAction < 180) return;
         this.lastAction = now;
       }
+      if (msg.type === 'stop-use' && !this.engine.state.players.p2?.resting && !this.engine.state.players.p2?.sky) return;
       this.apply('p2', msg);
     });
     const left = () => {
@@ -174,7 +175,8 @@ export class Session {
       case 'ready': this.engine.ready(id, msg.value); break;
       case 'interact': this.engine.interact(id); break;
       case 'emote': this.engine.emote(id); break;
-      case 'craft': case 'build': case 'plant': case 'dismantle': this.engine.action(id, msg); break;
+      case 'hello': break;
+      default: this.engine.action(id, msg); break;
     }
     if (msg.type !== 'input') this.publish();
   }
