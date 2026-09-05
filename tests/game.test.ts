@@ -20,6 +20,20 @@ describe('sandbox rules', () => {
     expect(state.inventory.orange).toBe(1); advance(engine, 0.4); interact(state, 'p1'); expect(state.inventory.orange).toBe(1);
     advance(engine, 26); interact(state, 'p1'); expect(state.inventory.orange).toBe(2);
   });
+  it('offers reversible host builder test mode with unlimited material costs', () => {
+    const engine = game(), state = engine.state, before = { ...state.inventory };
+    engine.setTestMode(true);
+    expect(state.testMode).toBe(true);
+    expect(Object.values(state.inventory).every(amount => amount === 9999)).toBe(true);
+    advance(engine, 0.4); sandboxAction(state, 'p1', { type: 'craft', tool: 'axe' });
+    expect(state.players.p1!.tools).toContain('axe');
+    expect(state.inventory).toEqual(Object.fromEntries(Object.keys(before).map(kind => [kind, 9999])));
+    advance(engine, 0.4); sandboxAction(state, 'p1', { type: 'build', kind: 'home' });
+    expect(state.buildings).toHaveLength(1);
+    engine.setTestMode(false);
+    expect(state.testMode).toBe(false);
+    expect(state.inventory).toEqual(before);
+  });
   it('enforces proximity, tool prerequisites and per-player ownership', () => {
     const engine = game(), state = engine.state, p = state.players.p1!;
     const node = generateWorld(state.seed).items.find(n => n.kind === 'iron')!;

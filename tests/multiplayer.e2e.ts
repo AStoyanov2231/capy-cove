@@ -36,6 +36,15 @@ test('two actual WebRTC peers choose capybaras, spawn, collect, reject a third, 
   await expect(guest.getByRole('heading', { name: 'Sunlit meadows' })).toBeVisible();
   await expect(host.locator('#label-p1')).toHaveAttribute('data-x', '-2');
   await expect(guest.locator('#label-p2')).toHaveAttribute('data-x', '0');
+  await host.getByRole('button', { name: 'Game menu', exact: true }).click();
+  await host.getByRole('button', { name: 'Enable builder test mode', exact: true }).click();
+  await expect(host.locator('#test-mode-status')).toBeVisible();
+  await expect(host.locator('#bag-wood')).toHaveText('9999');
+  await expect(guest.locator('#bag-wood')).toHaveText('9999');
+  await host.getByRole('button', { name: 'Game menu', exact: true }).click();
+  await host.getByRole('button', { name: 'Return to normal resources', exact: true }).click();
+  await expect(host.locator('#test-mode-status')).toBeHidden();
+  await expect(host.locator('#bag-wood')).toHaveText('16');
   await host.screenshot({ path: 'test-results/game-desktop.png' });
   // The first orange is within reach of the shared spawn. Input is a real keyboard action.
   await expect(host.locator('#interact-button')).toBeEnabled();

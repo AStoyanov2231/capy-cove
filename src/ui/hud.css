@@ -9,6 +9,7 @@
 #friend-location { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 5px; font-weight: 700; color: #fff9df; text-shadow: 0 1px 4px #244e43; }
 #friend-location::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #d8ed98; box-shadow: 0 1px 3px #244e43; }
 #friend-location.offline::before { background: #eca083; }
+.test-mode-status { display: inline-flex; align-items: center; width: fit-content; margin-top: 7px; padding: 3px 8px; border-radius: 6px; background: #f2d693e6; color: #584627; font-size: 10px; font-weight: 800; letter-spacing: .02em; box-shadow: 0 2px 6px #244e4330; }
 .map-panel { position: absolute; top: 81px; right: 20px; width: 118px; height: 118px; padding: 7px; border: 10px solid transparent; border-image: url('/art/menu-frame.webp') 120 fill / 15px stretch; filter: drop-shadow(0 6px 12px #234a3526); transition: width 200ms, height 200ms; }
 .map-toggle { display: block; background: none; padding: 0; width: 100%; height: 100%; }
 #minimap { display: block; width: 100%; height: 100%; border-radius: 9px; }
@@ -55,6 +56,7 @@
 .cost-token b span { font-size: 11px; font-weight: 600; }
 .cost-token.is-missing { color: #965036; }
 .cost-token > svg { width: 12px; height: 12px; }
+.test-mode-note { display: block; margin-top: 3px; color: #6f753f; font-size: 11px; font-weight: 700; }
 .catalog-detail .requirement { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 11px; color: #8a543b; margin-top: 7px; }
 .requirement svg { width: 14px; height: 14px; }
 .harvest-yield { display: flex; align-items: center; gap: 3px; }
@@ -89,6 +91,7 @@
 #toast b { font: 500 21px 'Fredoka', sans-serif; }
 .game-screen dialog { border: 17px solid transparent; border-image: url('/art/menu-frame.webp') 115 fill / 25px stretch; background: none; border-radius: 0; padding: 24px; }
 .game-screen dialog .dialog-close { top: 7px; right: 7px; }
+.game-screen dialog .small-print { margin: 7px 0 12px; }
 @media (max-width: 960px) and (min-width: 761px) { .inventory { left: 18px; gap: 1px; } .inventory > span { width: 43px; } .inventory .game-art { width: 45px; height: 45px; } }
 @media (max-width: 760px) {
   .game-screen .topbar { top: 14px; left: 14px; right: 14px; }

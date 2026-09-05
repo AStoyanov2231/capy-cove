@@ -15,10 +15,10 @@ const effects: Record<ToolKind, string> = { axe: 'Double wood & fiber', pickaxe:
 export const panelDefaults: Record<Panel, Selection> = { craft: 'axe', build: 'home', farm: 'wheat', bag: 'wood' };
 export function materialCost(state: GameState, cost: Cost, output = false): string {
   return `<div class="material-cost" aria-label="${output ? 'Yield' : 'Materials required'}">${Object.entries(cost).map(([key, needed]) => {
-    const kind = key as ItemKind, have = state.inventory[kind], missing = !output && have < needed;
-    const label = output ? `${needed} ${ITEM_LABELS[kind]}` : `${ITEM_LABELS[kind]}: ${have} available, ${needed} needed`;
-    return `<span class="cost-token ${missing ? 'is-missing' : ''}" title="${label}" aria-label="${label}">${art('resources', kind)}<b>${output ? `+${needed}` : `${have}<span>/${needed}</span>`}</b>${missing ? icon('minus') : ''}</span>`;
-  }).join('')}</div>`;
+    const kind = key as ItemKind, have = state.inventory[kind], missing = !output && !state.testMode && have < needed;
+    const label = output ? `${needed} ${ITEM_LABELS[kind]}` : `${ITEM_LABELS[kind]}: ${state.testMode ? 'unlimited' : `${have} available, ${needed} needed`}`;
+    return `<span class="cost-token ${missing ? 'is-missing' : ''}" title="${label}" aria-label="${label}">${art('resources', kind)}<b>${output ? `+${needed}` : state.testMode ? '∞' : `${have}<span>/${needed}</span>`}</b>${missing ? icon('minus') : ''}</span>`;
+  }).join('')}</div>${state.testMode && !output ? '<span class="test-mode-note">Unlimited in builder test mode</span>' : ''}`;
 }
 export function workshopMarkup(state: GameState, id: PlayerId, panel: Panel, selection: Selection): string {
   const local = state.players[id]!, connected = bothConnected(state);

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const profileSchema = z.object({
   name: z.string().trim().min(1).max(16), gender: z.enum(['male', 'female']),
   fur: z.enum(['honey', 'cocoa', 'sand']), accessory: z.enum(['orange', 'flower', 'none']),
@@ -34,7 +34,7 @@ export const cropSchema = z.object({ id: identifier, kind: cropKindSchema, x: po
 export type Crop = z.infer<typeof cropSchema>;
 export const stateSchema = z.object({
   version: z.literal(PROTOCOL_VERSION), phase: z.enum(['lobby', 'playing']), seed: z.number().int().min(0).max(2147483647),
-  time, players: z.object({ p1: playerSchema.nullable(), p2: playerSchema.nullable() }),
+  time, testMode: z.boolean(), players: z.object({ p1: playerSchema.nullable(), p2: playerSchema.nullable() }),
   depleted: z.record(identifier, time).refine(nodes => Object.keys(nodes).length <= 1024, 'Too many depleted resource nodes'),
   inventory: z.record(itemKindSchema, z.number().int().nonnegative().max(9999)),
   buildings: z.array(buildingSchema).max(100), crops: z.array(cropSchema).max(200),

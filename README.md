@@ -45,6 +45,8 @@ Each host generates a random seed for a **finite 256 × 256 world**, substantial
 
 All raw materials have renewable sources. No tool or recipe requires a finite quest reward. Sessions currently allow 100 buildings, 200 crop plots and 9,999 units of each inventory material. Inventory limits are storage caps, not a depletion of the world’s resources.
 
+The host can open the Game menu and enable **Builder test mode** while testing. It fills the shared bag, makes crafting and building costs free, and shows an active status badge. Use **Return to normal resources** in the same menu to restore the bag from before testing; buildings and tools already created remain in the session.
+
 ## Controls
 
 | Action | Desktop | Touch |
@@ -56,7 +58,7 @@ All raw materials have renewable sources. No tool or recipe requires a finite qu
 | Cancel menu or blueprint | Escape | Close / cancel button |
 | Send a heart | H | Heart button |
 | Zoom | Mouse wheel | Default camera framing |
-| Sound / help / leave | Top-right Game menu | Top-right Game menu |
+| Sound / help / leave / builder test mode (host) | Top-right Game menu | Top-right Game menu |
 
 Movement is camera-relative. Swimming is automatic and slower. Sound is optional. Reduced-motion settings disable ambient effects and room fades without disabling gameplay.
 
@@ -79,7 +81,7 @@ npm run test:e2e   # Real browser WebRTC peers and local signaling
 npm run preview
 ```
 
-`tests/game.test.ts` covers the sandbox rules and protocol. `tests/adventure.e2e.ts` exercises construction, independent interior rooms and farming through DOM keyboard controls. The multiplayer scenarios cover readiness, movement, pickup synchronization, third-player rejection, disconnect/rejoin and mobile controls. There are no production teleport/debug hooks. See `docs/QUALITY.md` for what was actually verified for this change; test definitions are not evidence that they passed.
+`tests/game.test.ts` covers the sandbox rules and protocol. `tests/adventure.e2e.ts` exercises construction, independent interior rooms and farming through DOM keyboard controls. The multiplayer scenarios cover readiness, movement, pickup synchronization, third-player rejection, disconnect/rejoin and mobile controls. Builder test mode is an explicit host-only, reversible testing control; it does not provide teleportation or client-side authority. See `docs/QUALITY.md` for what was actually verified for this change; test definitions are not evidence that they passed.
 
 ## Architecture
 
@@ -111,7 +113,7 @@ src/
     icons.ts           Selected Lucide icons and escaping
 ```
 
-The host owns all gameplay. Guests send bounded movement vectors and enumerated intent, never positions, inventory totals, placement coordinates or room identifiers. Host rules resolve interaction proximity, resource readiness, costs, tool requirements, placement and room transitions. Protocol v2 replaces the old quest protocol; old clients are not compatible.
+The host owns all gameplay. Guests send bounded movement vectors and enumerated intent, never positions, inventory totals, placement coordinates or room identifiers. Host rules resolve interaction proximity, resource readiness, costs, tool requirements, placement and room transitions. Protocol v3 replaces the old quest protocol and includes the reversible builder test-mode state; old clients are not compatible.
 
 Simulation runs at 30 fixed steps/second, snapshots at 10/second and input refreshes at 20/second. Short stalls use bounded catch-up; stale inputs expire. Disconnects pause simulation time, crops and resource regeneration. Rejoining restores the guest’s tools, room and progress while the host remains online.
 

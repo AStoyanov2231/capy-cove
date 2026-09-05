@@ -17,6 +17,7 @@ export interface UIEvents {
   interact: () => void;
   emote: () => void;
   sound: () => Promise<boolean>;
+  testMode: (enabled: boolean) => void;
   command: (command: SandboxCommand) => void;
   blueprint: (kind: BuildingKind | null) => void;
 }
@@ -139,7 +140,7 @@ export class GameUI {
   private showGame(): void {
     this.screen = 'game'; this.root.className = 'game-screen';
     this.root.innerHTML = `${this.header()}
-      <section class="place-panel" aria-label="Your surroundings"><h2 id="place-title">Sunlit meadows</h2><span id="friend-location"></span></section>
+      <section class="place-panel" aria-label="Your surroundings"><h2 id="place-title">Sunlit meadows</h2><span id="friend-location"></span><span id="test-mode-status" class="test-mode-status" hidden>Builder test mode</span></section>
       <aside class="map-panel" aria-label="World map"><button class="map-toggle" data-action="map" aria-label="Expand world map" aria-expanded="false"><canvas id="minimap" width="440" height="440" aria-label="Map showing biomes, resources, buildings, you and your friend"></canvas></button></aside>
       <div id="connection-banner" class="connection-banner" role="status" hidden>${icon('radio')}Your friend disconnected. The world is paused.<button data-action="copy">Copy invite</button></div>
       <div id="player-labels" aria-hidden="true"><div id="label-p1" class="player-label"></div><div id="label-p2" class="player-label"></div></div>
@@ -169,6 +170,8 @@ export class GameUI {
     friendStatus.setAttribute('aria-label', friendStatus.title);
     friendStatus.classList.toggle('offline', !friend?.connected);
     for (const kind of ['orange', 'seed', 'stone', 'wood'] as const) this.text(`bag-${kind}`, String(state.inventory[kind]));
+    const testModeStatus = document.getElementById('test-mode-status');
+    if (testModeStatus) testModeStatus.hidden = !state.testMode;
     const interaction = nearestInteraction(state, this.localId);
     const interactButton = document.getElementById('interact-button') as HTMLButtonElement;
     const waiting = !!local.fishing && state.time < local.fishing.biteAt;
@@ -193,7 +196,7 @@ export class GameUI {
       this.text('blueprint-hint', issue || (!canAfford(state, def.cost) ? 'Missing materials' : 'Choose a clear spot'));
       (document.getElementById('place-button') as HTMLButtonElement).disabled = !!issue || !canAfford(state, def.cost) || !bothConnected(state);
     }
-    const signature = JSON.stringify([state.inventory, local.tools, local.location, bothConnected(state), state.buildings.length, this.panel === 'build' && interaction?.type === 'enter' ? interaction.id : null]);
+    const signature = JSON.stringify([state.inventory, state.testMode, local.tools, local.location, bothConnected(state), state.buildings.length, this.panel === 'build' && interaction?.type === 'enter' ? interaction.id : null]);
     if (this.panel && signature !== this.panelSignature) { this.panelSignature = signature; this.renderPanel(); }
   }
   positionLabels(project: (id: PlayerId) => { x: number; y: number } | null): void {
@@ -230,7 +233,9 @@ export class GameUI {
     this.dialog(`<h2>A little guidance</h2><dl class="controls-guide"><div><dt><kbd>W A S D</kbd> / arrows</dt><dd>Move</dd></div><div><dt><kbd>E</kbd> / <kbd>Space</kbd></dt><dd>Nearby action</dd></div><div><dt><kbd>C</kbd> <kbd>B</kbd> <kbd>G</kbd> <kbd>I</kbd></dt><dd>Craft · build · farm · bag</dd></div><div><dt><kbd>M</kbd> / mouse wheel</dt><dd>Map / zoom</dd></div></dl><p>Gather by hand. Craft tools. Plant seeds. Cast a line at the river. Resources return and tools never break.</p><p>On touch screens, use the direction pad and tap the nearby action.</p><p class="small-print">Keep the host tab open. This world is not saved when the host leaves.</p><button class="button primary" data-action="close-dialog">Back to the world</button>`, 'How to play');
   }
   private showOptions(): void {
-    this.dialog(`<h2>A little breather</h2><button class="button secondary" data-action="sound" aria-label="${this.soundOn ? 'Mute island sounds' : 'Enable island sounds'}" aria-pressed="${this.soundOn}">${icon(this.soundOn ? 'volume-2' : 'volume-x')}Sound ${this.soundOn ? 'on' : 'off'}</button><button class="button secondary" data-action="help">${icon('circle-help')}How to play</button><button class="button secondary" data-action="leave">${icon('door-open')}Leave island</button><button class="button primary" data-action="close-dialog">Keep exploring</button>`, 'Game menu');
+    const testMode = this.state?.testMode ?? false;
+    const builderControl = this.localId === 'p1' ? `<button class="button secondary" data-action="test-mode">${icon(testMode ? 'rotate-ccw' : 'package')}${testMode ? 'Return to normal resources' : 'Enable builder test mode'}</button><p class="small-print">${testMode ? 'Build and craft without spending materials.' : 'Temporarily fills the shared bag and skips material costs.'}</p>` : '';
+    this.dialog(`<h2>A little breather</h2><button class="button secondary" data-action="sound" aria-label="${this.soundOn ? 'Mute island sounds' : 'Enable island sounds'}" aria-pressed="${this.soundOn}">${icon(this.soundOn ? 'volume-2' : 'volume-x')}Sound ${this.soundOn ? 'on' : 'off'}</button>${builderControl}<button class="button secondary" data-action="help">${icon('circle-help')}How to play</button><button class="button secondary" data-action="leave">${icon('door-open')}Leave island</button><button class="button primary" data-action="close-dialog">Keep exploring</button>`, 'Game menu');
   }
   private toggleMap(value = !this.mapExpanded): void {
     this.mapExpanded = value; this.root.classList.toggle('map-expanded', value);
@@ -304,6 +309,7 @@ export class GameUI {
       case 'sound':
         try { this.soundOn = await this.events.sound(); button.innerHTML = icon(this.soundOn ? 'volume-2' : 'volume-x') + (button.closest('dialog') ? `Sound ${this.soundOn ? 'on' : 'off'}` : ''); button.setAttribute('aria-label', this.soundOn ? 'Mute island sounds' : 'Enable island sounds'); button.setAttribute('aria-pressed', String(this.soundOn)); renderIcons(); }
         catch { this.toast('Audio is unavailable in this browser. The island is still lovely in silence.'); } break;
+      case 'test-mode': this.root.querySelector('dialog')?.close(); this.events.testMode(!this.state?.testMode); break;
       case 'copy':
         try { await navigator.clipboard.writeText(this.invite); this.toast('Invite copied. Send a little paradise to your friend.'); }
         catch { const input = document.getElementById('invite-link') as HTMLInputElement | null; if (input) { input.focus(); input.select(); this.toast('Select and copy the invite link above.'); } else this.toast(`Invite link: ${this.invite}`); } break;

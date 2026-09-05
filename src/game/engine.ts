@@ -5,7 +5,7 @@ import { PROTOCOL_VERSION, itemKindSchema, type Building, type BuildingKind, typ
 export function initialState(seed = 7241): GameState {
   const inventory = Object.fromEntries(itemKindSchema.options.map(kind => [kind, 0])) as GameState['inventory'];
   Object.assign(inventory, { wood: 16, stone: 10, seed: 6, fiber: 4 });
-  return { version: PROTOCOL_VERSION, seed, phase: 'lobby', time: 0, players: { p1: null, p2: null }, depleted: {}, inventory,
+  return { version: PROTOCOL_VERSION, seed, phase: 'lobby', time: 0, testMode: false, players: { p1: null, p2: null }, depleted: {}, inventory,
     buildings: [], crops: [], nextId: 0, harvests: 0, catches: 0, notice: '', noticeId: 0 };
 }
 export function makePlayer(id: PlayerId, profile: Profile): Player {
@@ -43,8 +43,8 @@ export function movePlayer(player: Player, input: MoveInput, dt: number, state: 
   if (canWalk(state, player, player.x, z)) player.z = z;
   player.angle = Math.atan2(input.x, input.z);
 }
-export function canAfford(state: GameState, cost: Cost): boolean { return Object.entries(cost).every(([kind, amount]) => state.inventory[kind as keyof Cost] >= amount); }
-function pay(state: GameState, cost: Cost): void { for (const [kind, amount] of Object.entries(cost)) state.inventory[kind as keyof Cost] -= amount; }
+export function canAfford(state: GameState, cost: Cost): boolean { return state.testMode || Object.entries(cost).every(([kind, amount]) => state.inventory[kind as keyof Cost] >= amount); }
+function pay(state: GameState, cost: Cost): void { if (state.testMode) return; for (const [kind, amount] of Object.entries(cost)) state.inventory[kind as keyof Cost] -= amount; }
 function grant(state: GameState, cost: Cost): void { for (const [kind, amount] of Object.entries(cost)) state.inventory[kind as keyof Cost] = Math.min(9999, state.inventory[kind as keyof Cost] + amount); }
 export function buildPosition(player: Player): { x: number; z: number } { return { x: Math.round(player.x / 2) * 2, z: Math.round((player.z - 9) / 2) * 2 }; }
 export function placementIssue(state: GameState, player: Player, kind: BuildingKind): string | null {
@@ -164,6 +164,7 @@ export function sandboxAction(state: GameState, id: PlayerId, command: SandboxCo
 /** Host-owned simulation; no DOM, rendering, transport or client-supplied positions. */
 export class GameEngine {
   readonly state: GameState;
+  private normalInventory: GameState['inventory'] | null = null;
   private inputs: Record<PlayerId, { value: MoveInput; at: number }> = { p1: { value: { x: 0, z: 0 }, at: 0 }, p2: { value: { x: 0, z: 0 }, at: 0 } };
   constructor(seed = 7241) { this.state = initialState(seed); }
   addPlayer(id: PlayerId, profile: Profile): void {
@@ -180,6 +181,20 @@ export class GameEngine {
   ready(id: PlayerId, value: boolean): void { setReady(this.state, id, value); }
   interact(id: PlayerId): void { interact(this.state, id); }
   action(id: PlayerId, command: SandboxCommand): void { sandboxAction(this.state, id, command); }
+  setTestMode(enabled: boolean): void {
+    if (enabled === this.state.testMode) return;
+    if (enabled) {
+      this.normalInventory = { ...this.state.inventory };
+      for (const kind of itemKindSchema.options) this.state.inventory[kind] = 9999;
+      this.state.testMode = true;
+      announce(this.state, 'Builder test mode on. Materials are unlimited until you turn it off.');
+      return;
+    }
+    if (this.normalInventory) this.state.inventory = { ...this.normalInventory };
+    this.normalInventory = null;
+    this.state.testMode = false;
+    announce(this.state, 'Builder test mode off. Your normal bag is back.');
+  }
   emote(id: PlayerId): void { const p = this.state.players[id]; if (p && p.emoteUntil <= this.state.time) p.emoteUntil = this.state.time + 2.5; }
   tick(dt: number): void {
     if (this.state.phase === 'lobby' || !bothConnected(this.state)) return;

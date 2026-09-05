@@ -38,6 +38,7 @@ async function boot(): Promise<void> {
     interact: () => session?.command({ type: 'interact' }),
     emote: () => session?.command({ type: 'emote' }),
     sound: () => audio.toggle(),
+    testMode: enabled => session?.setTestMode(enabled),
     command: command => session?.command(command),
     blueprint: kind => renderer.selectBuilding(kind),
   });

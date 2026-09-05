@@ -181,6 +181,11 @@ export class Session {
   command(message: GuestMessage): void {
     if (this.engine) this.apply('p1', message); else this.send(message);
   }
+  setTestMode(enabled: boolean): void {
+    if (!this.engine) return;
+    this.engine.setTestMode(enabled);
+    this.publish();
+  }
   input(input: MoveInput): void { this.command({ type: 'input', input }); }
   close(): void {
     this.closed = true;
