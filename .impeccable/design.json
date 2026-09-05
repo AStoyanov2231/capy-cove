@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "title": "Design System: Capy Cove",
+  "extensions": {
+    "shadows": [{ "name": "hud", "value": "0 12px 36px #2f51351a", "purpose": "Separate readable controls from the live island." }],
+    "motion": [{ "name": "control", "value": "160ms", "purpose": "Hover and press feedback; disabled for reduced motion." }, { "name": "progress", "value": "transform 250ms", "purpose": "Shared quest progress without layout animation." }],
+    "breakpoints": [{ "name": "mobile", "value": "760px" }, { "name": "compact-desktop", "value": "1050px" }]
+  },
+  "components": [
+    {
+      "name": "Primary action", "kind": "button", "refersTo": "button-primary", "description": "The next clear step toward a shared island.",
+      "html": "<button class=\"ds-primary\">Create an island</button>",
+      "css": ".ds-primary{font:700 14px 'Nunito Sans',sans-serif;background:var(--leaf,#305e43);color:#fff7dc;border:0;border-radius:10px;padding:13px 16px;min-height:49px;cursor:pointer;transition:background-color 160ms}.ds-primary:hover{background:#234c35}.ds-primary:focus-visible{outline:3px solid #b47627;outline-offset:4px}.ds-primary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Secondary action", "kind": "button", "refersTo": "button-secondary", "description": "A quieter alternative, not a competing main action.",
+      "html": "<button class=\"ds-secondary\">Back to the beach</button>",
+      "css": ".ds-secondary{font:700 14px 'Nunito Sans',sans-serif;background:#edeedb;color:var(--ink,#264d3b);border:0;border-radius:10px;padding:13px 16px;min-height:49px;cursor:pointer}.ds-secondary:hover{background:#e1e4c8}.ds-secondary:focus-visible{outline:3px solid #b47627;outline-offset:4px}.ds-secondary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Capybara name", "kind": "input", "description": "A short, labeled personal detail.",
+      "html": "<label class=\"ds-label\">Your capybara’s name<input class=\"ds-input\" value=\"Mango\" maxlength=\"16\"></label>",
+      "css": ".ds-label{display:block;color:var(--ink,#264d3b);font:700 12px 'Nunito Sans',sans-serif}.ds-input{display:block;box-sizing:border-box;width:100%;margin-top:8px;height:44px;border:1px solid #a1b79a;border-radius:9px;background:#fff9e9cc;padding:0 14px;color:var(--ink,#264d3b);font:600 14px 'Nunito Sans',sans-serif}.ds-input:focus-visible{outline:3px solid #b47627;outline-offset:4px}"
+    },
+    {
+      "name": "Player label", "kind": "chip", "description": "A compact nameplate anchored above a real capybara.",
+      "html": "<span class=\"ds-player\">Mango · you</span>",
+      "css": ".ds-player{display:inline-block;padding:5px 10px;background:#365d42;color:#fff6dd;border-radius:20px;font:700 10px 'Nunito Sans',sans-serif}"
+    },
+    {
+      "name": "Quest surface", "kind": "card", "description": "The current shared objective on one opaque reading surface.",
+      "html": "<section class=\"ds-quest\"><h2>A picnic for two</h2><p>Find six oranges, then meet at picnic meadow.</p></section>",
+      "css": ".ds-quest{padding:18px 21px 17px;border-radius:14px;background:var(--paper,#fff9e9);color:var(--ink,#264d3b);box-shadow:0 12px 36px #2f51351a;max-width:294px}.ds-quest h2{font:500 23px/1.15 'Fredoka',sans-serif;margin:0 0 8px}.ds-quest p{font:400 12px/1.6 'Nunito Sans',sans-serif;margin:0;color:#526448}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A very good day on a little island.",
+    "overview": "The user's approved cozy, low-poly island is the visual authority. The actual WebGL scene leads; DOM controls sit around it.",
+    "keyCharacteristics": ["Living procedural scenery, not a static hero image.", "Leaf-green controls, pale paper panels, turquoise water, and honey-colored capybaras.", "Simple, rounded controls that remain distinct from the angular 3D world."],
+    "rules": [{ "name": "The Scenery Rule", "body": "Let the world provide color variation. Do not add unrelated accent colors to each HUD panel.", "section": "colors" }],
+    "dos": ["Do keep the island visible and the current cooperative goal legible.", "Do show actual connection state and explain how to recover."],
+    "donts": ["Don't turn the screen into nested panels or add promotional content over gameplay.", "Don't substitute 2D artwork for the playable procedural scene."]
+  }
+}
