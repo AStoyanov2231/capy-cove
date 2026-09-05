@@ -26,7 +26,7 @@ A polished top-view, low-poly 3D capybara sandbox for two friends, with procedur
 - User authorized creating public repository AStoyanov2231/capy-cove and deploying to GitHub Pages after testing.
 
 ## Brand Commitments
-Approved name: Capy Cove. Cozy, sunlit, low-poly 3D world. Preserve the capybaras and existing character customization.
+Approved name: Capy Cove. Cozy, sunlit, low-poly 3D world. Preserve the capybaras and existing character customization. Pursue the rounded forms, rich environment and lighting polish of the user's Slime Rancher reference without copying its assets or claiming equivalent production readiness. Use generated low-poly HUD frames and resource, tool and building icons. Keep gameplay text minimal, details selection-driven, and control hints contextual.
 
 ## Product Principles
 Keep rendering, game rules, networking, and UI independent. Shared actions must be validated by the host. Make joining a friend clear and recoverable.

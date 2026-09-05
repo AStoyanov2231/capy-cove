@@ -1,4 +1,4 @@
-# Sandbox implementation status
+# Sandbox and visual-polish implementation status
 
 ## Verification boundary
 
@@ -6,9 +6,11 @@ The user explicitly requested that no further tests be run and that the code be 
 
 - Before that instruction, the original game's two `tests/multiplayer.e2e.ts` scenarios passed. They describe the pre-sandbox baseline, not this implementation.
 - `npm run lint`, `npm run build` (TypeScript and Vite) and `git diff --check` passed. None executes tests.
-- The static design detector reported 158 advisory token/ramp mismatches against existing design metadata, with no non-advisory findings. The generated design sidecar was already stale and was not manually modified.
-- Sandbox unit and E2E scenarios were updated in source, but were **not executed** for this change.
-- No post-change browser walkthrough or visual screenshot review was performed. There is no claim that the new multiplayer flow, room visuals, mobile layout or performance passed runtime QA.
+- The earlier sandbox pass ran a static design detector. It was not rerun for the visual-polish pass; its historical findings are not current validation. The generated design sidecar was already stale and was not manually modified.
+- Sandbox unit and E2E scenarios were updated in source, but were **not executed**. The visual-polish pass updates E2E selectors for icon selection and the consolidated Game menu, without running them.
+- Generated icon artwork was inspected on a proof sheet. The crystal icon was regenerated separately to avoid chroma-key fringe. Shipping artwork includes embedded generation provenance and complete prompts in `docs/art-source/PROMPTS.md`.
+- No post-change browser walkthrough or in-game visual screenshot review was performed. There is no claim that the new multiplayer flow, room visuals, mobile layout, shader compilation or frame rate passed runtime QA. TypeScript compilation does not validate GPU shaders.
+- The icon-driven HUD and 3D lighting/environment work are implemented, but production readiness and parity with a commercial game's visual polish remain unverified.
 
 Existing CI remains configured. A successful push is not evidence that CI or GitHub Pages deployment succeeded.
 

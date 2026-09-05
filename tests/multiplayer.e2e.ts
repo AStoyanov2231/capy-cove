@@ -47,6 +47,7 @@ test('two actual WebRTC peers choose capybaras, spawn, collect, reject a third, 
   await expect.poll(async () => Number(await host.locator('#label-p2').getAttribute('data-x'))).toBeGreaterThan(before + 0.7);
   await guest.keyboard.up('d');
   await guest.getByRole('button', { name: 'Send a heart (H)' }).click();
+  await guest.getByRole('button', { name: 'Game menu', exact: true }).click();
   await guest.getByRole('button', { name: 'Leave island', exact: true }).click();
   await guest.getByRole('dialog').getByRole('button', { name: 'Leave island', exact: true }).click();
   await expect(host.locator('#connection-banner')).toBeVisible();

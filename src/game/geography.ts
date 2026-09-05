@@ -3,12 +3,12 @@ import type { ItemKind, ToolKind } from './schema';
 
 export type Biome = 'meadow' | 'forest' | 'desert' | 'wetland' | 'highland' | 'snow';
 export const BIOMES: Record<Biome, { name: string; color: string; description: string }> = {
-  meadow: { name: 'Sunlit meadows', color: '#a6b978', description: 'Oranges, seeds, wood and stone. Fertile soil for crops.' },
-  forest: { name: 'Whispering woods', color: '#739667', description: 'Abundant wood and fiber. Copper hides among the roots.' },
-  desert: { name: 'Amber dunes', color: '#d9bd83', description: 'Rolling sand, copper deposits and scattered stone.' },
-  wetland: { name: 'Willow wetlands', color: '#829e87', description: 'Clay banks, tall reeds and river fishing.' },
-  highland: { name: 'Cascading highlands', color: '#a5aaa0', description: 'Iron, crystal and waterfalls. Bring a pickaxe.' },
-  snow: { name: 'Frostpine peaks', color: '#d5dfdb', description: 'Snowy ridges, iron seams and cold-water trout.' },
+  meadow: { name: 'Sunlit meadows', color: '#acd083', description: 'Oranges, seeds, wood and stone. Fertile soil for crops.' },
+  forest: { name: 'Whispering woods', color: '#79ae79', description: 'Abundant wood and fiber. Copper hides among the roots.' },
+  desert: { name: 'Amber dunes', color: '#e5c68b', description: 'Rolling sand, copper deposits and scattered stone.' },
+  wetland: { name: 'Willow wetlands', color: '#91bfa0', description: 'Clay banks, tall reeds and river fishing.' },
+  highland: { name: 'Cascading highlands', color: '#abbda7', description: 'Iron, crystal and waterfalls. Bring a pickaxe.' },
+  snow: { name: 'Frostpine peaks', color: '#dae9e1', description: 'Snowy ridges, iron seams and cold-water trout.' },
 };
 export interface WorldItem { id: string; kind: ItemKind; x: number; z: number; respawn: number; requires?: ToolKind }
 export interface GeneratedWorld { seed: number; items: readonly WorldItem[] }

@@ -1,4 +1,5 @@
 import './style.css';
+import './ui/hud.css';
 import { InputController } from './game/input';
 import { bothConnected } from './game/engine';
 import type { Profile } from './game/schema';

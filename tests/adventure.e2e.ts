@@ -53,15 +53,16 @@ test('two friends build, explore independent rooms, and grow renewable crops', a
   await guest.getByRole('button', { name: 'Join your friend’s island' }).click();
   await guest.getByRole('button', { name: 'I’m ready to explore' }).click();
   await host.getByRole('button', { name: 'I’m ready to explore' }).click();
-  await expect(host.locator('#label-p1')).toBeVisible();
+  await expect(host.getByRole('heading', { name: 'Sunlit meadows', exact: true })).toBeVisible();
   await host.locator('[data-panel="build"]').click();
-  await expect(host.locator('[data-blueprint]')).toHaveCount(20);
+  await expect(host.locator('.building-grid [data-select]')).toHaveCount(20);
   await host.locator('[data-blueprint="home"]').click();
   await expect(host.getByRole('button', { name: 'Place building', exact: true })).toBeEnabled();
   await host.getByRole('button', { name: 'Place building', exact: true }).click();
   await expect(host.locator('#bag-wood')).toHaveText('4');
   await expect(guest.locator('#bag-wood')).toHaveText('4');
   await guest.locator('[data-panel="craft"]').click();
+  await guest.locator('[data-select="hoe"]').click();
   await guest.getByRole('button', { name: 'Craft garden hoe', exact: true }).click();
   await expect(guest.locator('#bag-wood')).toHaveText('1');
   await guest.getByRole('button', { name: 'Close sandbox menu' }).click();
@@ -81,7 +82,7 @@ test('two friends build, explore independent rooms, and grow renewable crops', a
   await host.keyboard.press('e');
   await expect(host.getByRole('heading', { name: 'Kitchen', exact: true })).toBeVisible();
   await host.screenshot({ path: 'test-results/sandbox-interior.png' });
-  await expect(guest.locator('#friend-location')).toContainText('inside home house');
+  await expect(guest.locator('#friend-location')).toHaveAttribute('title', /inside home house/);
   await guest.waitForTimeout(Math.max(0, CROP_SECONDS * 1000 + 1500 - (Date.now() - plantedAt)));
   await walkTo(guest, 'p2', { x: 2, z: 10 });
   await expect(guest.locator('#interact-label')).toHaveText('Harvest wheat');
@@ -89,6 +90,7 @@ test('two friends build, explore independent rooms, and grow renewable crops', a
   await expect(host.locator('#bag-seed')).toHaveText('7');
   await expect(guest.locator('#bag-seed')).toHaveText('7');
   await guest.locator('[data-panel="bag"]').click();
+  await guest.locator('[data-select="wheat"]').click();
   await expect(guest.locator('#stock-wheat')).toHaveText('3');
   await guest.getByRole('button', { name: 'Close sandbox menu' }).click();
   await walkTo(host, 'p1', { x: 0, z: 4 });

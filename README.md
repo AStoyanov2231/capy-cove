@@ -15,6 +15,8 @@ A two-player, low-poly 3D browser sandbox built with TypeScript, Three.js, Vite,
 
 The shared bag starts with a few basic supplies. Inventory is shared; crafted tools belong to the player who makes them. Cosmetics never change abilities.
 
+The in-game HUD uses generated low-poly resource, tool and building icons. Open a catalog and select an icon to see its name, costs and action, rather than reading a screen full of recipes. Nearby actions appear contextually; controls and settings live in the Game menu. Artwork and generation prompts are recorded in `docs/art-source/PROMPTS.md`.
+
 ### A renewable sandbox
 
 - **Gathering:** wood, stone, oranges, fiber and wild seeds need no tool. Ordinary resources renew after 25 simulation seconds; ores after 45. Resources covered by buildings return when the building is dismantled. Nodes wait to renew if a player is standing on them.
@@ -49,11 +51,12 @@ All raw materials have renewable sources. No tool or recipe requires a finite qu
 | --- | --- | --- |
 | Move | WASD or arrows | Direction pad |
 | Gather / harvest / fish / use doors | E or Space | Context action button |
-| Craft / Build / Farm / Bag | C / B / G / I | Labeled toolbar buttons |
+| Craft / Build / Farm / Bag | C / B / G / I | Hotbar icons |
+| Expand / collapse map | M or click map | Tap map |
 | Cancel menu or blueprint | Escape | Close / cancel button |
 | Send a heart | H | Heart button |
 | Zoom | Mouse wheel | Default camera framing |
-| Sound / help / leave | Top-right buttons | Top-right buttons |
+| Sound / help / leave | Top-right Game menu | Top-right Game menu |
 
 Movement is camera-relative. Swimming is automatic and slower. Sound is optional. Reduced-motion settings disable ambient effects and room fades without disabling gameplay.
 
@@ -96,8 +99,13 @@ src/
     world.ts           Procedural scenery, architecture and furnished rooms
     capybara.ts        Cosmetic models and animation
     batching.ts        Static material-based mesh batching
+    finish.ts          Adaptive postprocessing and water/wind materials
+    particles.ts       Bounded instanced gathering feedback
   ui/
     interface.ts       Setup, lobby, surroundings, sandbox menus and dialogs
+    workshop.ts        Icon catalogs and selected-item details
+    art.ts             Base-path-aware generated icon references
+    hud.css            Responsive icon HUD and nine-slice menu frames
     minimap.ts         Seeded world map and collision-aligned room maps
     audio.ts           Optional synthesized sounds
     icons.ts           Selected Lucide icons and escaping
@@ -107,7 +115,7 @@ The host owns all gameplay. Guests send bounded movement vectors and enumerated 
 
 Simulation runs at 30 fixed steps/second, snapshots at 10/second and input refreshes at 20/second. Short stalls use bounded catch-up; stale inputs expire. Disconnects pause simulation time, crops and resource regeneration. Rejoining restores the guest’s tools, room and progress while the host remains online.
 
-Rendering consumes the same terrain sampling and furniture footprints as the engine. Static meshes batch by material; understory is instanced and distant resource models are culled. Resolution and shadow size adapt to sustained slow frames. Local view transitions never change another player’s view.
+Rendering consumes the same terrain sampling and furniture footprints as the engine. Rounded capybaras, layered tree canopies, beveled architecture, grass, flowers, butterflies and flowing water remain real 3D scenery. Static meshes batch by material; understory and gather particles are instanced, and distant resource models are culled. Grass clears under placed foundations. Warm sun, cool fill and environment reflections combine with restrained bloom, desktop contact occlusion and antialiasing. Sustained slow frames disable postprocessing and reduce resolution and shadow size. Reduced motion freezes ambient effects. Local view transitions never change another player’s view.
 
 ## Networking and session lifetime
 

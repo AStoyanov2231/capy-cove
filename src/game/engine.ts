@@ -17,7 +17,7 @@ export function setReady(state: GameState, id: PlayerId, value: boolean): void {
   const player = state.players[id]; if (!player || state.phase !== 'lobby') return;
   player.ready = value;
   if (bothConnected(state) && state.players.p1?.ready && state.players.p2?.ready) {
-    state.phase = 'playing'; announce(state, 'Your world, your pace. The shared bag has a few supplies to get you started.');
+    state.phase = 'playing'; announce(state, 'Welcome to Capy Cove.');
   }
 }
 export function buildingContains(building: Building, x: number, z: number, margin = 0): boolean { return Math.abs(x - building.x) < 4 + margin && Math.abs(z - building.z) < 3 + margin; }
@@ -76,14 +76,14 @@ export function nearestInteraction(state: GameState, id: PlayerId): Interaction 
     if (current < rooms.length - 1 && distance(player, { x: 5.3, z: 0 }) <= 2) return { type: 'room', room: current + 1, label: `Enter ${rooms[current + 1].name.toLowerCase()}` };
     return null;
   }
-  if (player.fishing) return { type: 'fish', label: state.time >= player.fishing.biteAt ? 'A bite! Reel in' : 'Line cast · wait for a bite' };
+  if (player.fishing) return { type: 'fish', label: state.time >= player.fishing.biteAt ? 'Reel in!' : 'Waiting…' };
   const building = state.buildings.find(b => distance(player, entrance(b)) <= INTERACT_RADIUS);
   if (building) return { type: 'enter', id: building.id, label: `Enter ${buildingDefinition(building.kind).name.toLowerCase()}` };
   const crop = state.crops.filter(c => distance(player, c) <= 2.2 && state.time - c.plantedAt >= CROP_SECONDS).sort((a, b) => distance(player, a) - distance(player, b))[0];
   if (crop) return { type: 'crop', id: crop.id, label: `Harvest ${CROPS[crop.kind].name.toLowerCase()}` };
   const node = generateWorld(state.seed).items.filter(n => distance(player, n) <= INTERACT_RADIUS && !state.depleted[n.id] && !nodeCovered(state, n)).sort((a, b) => distance(player, a) - distance(player, b))[0];
   if (node) return { type: 'item', id: node.id, label: node.requires && !player.tools.includes(node.requires) ? `Needs ${TOOLS.find(t => t.id === node.requires)!.name.toLowerCase()}` : `Gather ${ITEM_LABELS[node.kind].toLowerCase()}` };
-  if (nearWater(player.x, player.z, state.seed) && !isWater(player.x, player.z, state.seed)) return { type: 'fish', label: player.tools.includes('rod') ? 'Cast fishing line' : 'Craft a fishing rod to fish here' };
+  if (nearWater(player.x, player.z, state.seed) && !isWater(player.x, player.z, state.seed)) return { type: 'fish', label: player.tools.includes('rod') ? 'Cast line' : 'Fishing rod needed' };
   return null;
 }
 function beginAction(state: GameState, id: PlayerId): Player | null {
@@ -103,36 +103,36 @@ export function interact(state: GameState, id: PlayerId): void {
   }
   if (target.type === 'item') {
     const node = generateWorld(state.seed).items.find(n => n.id === target.id)!;
-    if (node.requires && !p.tools.includes(node.requires)) { announce(state, target.label + '. Open Craft to make one.'); return; }
+    if (node.requires && !p.tools.includes(node.requires)) { announce(state, target.label + '.'); return; }
     let yieldAmount = 1;
     if (['wood', 'fiber'].includes(node.kind)) yieldAmount = p.tools.includes('copperAxe') ? 4 : p.tools.includes('axe') ? 2 : 1;
     if (['stone', 'clay', 'sand', 'copper', 'iron', 'crystal'].includes(node.kind)) yieldAmount = p.tools.includes('ironPickaxe') ? 3 : p.tools.includes('pickaxe') ? 2 : 1;
     grant(state, { [node.kind]: yieldAmount }); state.depleted[node.id] = state.time + node.respawn; state.harvests++;
-    announce(state, `+${yieldAmount} ${ITEM_LABELS[node.kind].toLowerCase()}. This resource renews in ${node.respawn}s.`); return;
+    announce(state, `+${yieldAmount} ${ITEM_LABELS[node.kind].toLowerCase()}`); return;
   }
   if (target.type === 'crop') {
     const crop = state.crops.find(c => c.id === target.id)!;
     grant(state, { [crop.kind]: CROPS[crop.kind].yield, seed: 2 }); state.crops = state.crops.filter(c => c.id !== crop.id); state.harvests++;
-    announce(state, `Harvested ${CROPS[crop.kind].name.toLowerCase()} and 2 seeds. Plant again to keep growing.`); return;
+    announce(state, `+${CROPS[crop.kind].yield} ${CROPS[crop.kind].name.toLowerCase()} · +2 seeds`); return;
   }
   if (target.type === 'fish') {
-    if (!p.tools.includes('rod')) { announce(state, 'Craft a fishing rod from wood and fiber. No bait needed.'); return; }
-    if (!p.fishing) { p.fishing = { biteAt: state.time + 3, endsAt: state.time + 8 }; announce(state, 'Line cast. Wait for a bite, then press E. Moving cancels fishing.'); return; }
-    if (state.time < p.fishing.biteAt) { announce(state, 'Not yet. Wait for the bobber to dip.'); return; }
+    if (!p.tools.includes('rod')) { announce(state, 'Fishing rod needed.'); return; }
+    if (!p.fishing) { p.fishing = { biteAt: state.time + 3, endsAt: state.time + 8 }; return; }
+    if (state.time < p.fishing.biteAt) { announce(state, 'Waiting for a bite…'); return; }
     const biome = biomeAt(p.x, p.z, state.seed), kind = biome === 'highland' || biome === 'snow' ? 'trout' : 'fish';
     state.catches++;
     const pearl = state.catches % 3 === 0;
     grant(state, { [kind]: 1, ...(pearl ? { pearl: 1 } : {}) }); state.harvests++; p.fishing = null;
-    announce(state, `Caught ${ITEM_LABELS[kind].toLowerCase()}!${pearl ? ' A pearl came up with it.' : ' Every third catch brings a pearl.'}`);
+    announce(state, `+1 ${ITEM_LABELS[kind].toLowerCase()}${pearl ? ' · +1 pearl' : ''}`);
   }
 }
 export function sandboxAction(state: GameState, id: PlayerId, command: SandboxCommand): void {
   const p = beginAction(state, id); if (!p) return;
   if (command.type === 'craft') {
     const recipe = TOOLS.find(t => t.id === command.tool); if (!recipe) return;
-    if (p.tools.includes(recipe.id)) { announce(state, 'You already own this tool. Tools never break.'); return; }
+    if (p.tools.includes(recipe.id)) { announce(state, 'Already owned.'); return; }
     if (recipe.requires && !p.tools.includes(recipe.requires)) { announce(state, `Craft the ${TOOLS.find(t => t.id === recipe.requires)!.name.toLowerCase()} first.`); return; }
-    if (!canAfford(state, recipe.cost)) { announce(state, 'Not enough materials. Every raw resource grows back.'); return; }
+    if (!canAfford(state, recipe.cost)) { announce(state, 'Missing materials.'); return; }
     pay(state, recipe.cost); p.tools.push(recipe.id); announce(state, `${p.profile.name} crafted a ${recipe.name.toLowerCase()}.`); return;
   }
   if (command.type === 'build') {
@@ -140,7 +140,7 @@ export function sandboxAction(state: GameState, id: PlayerId, command: SandboxCo
     const problem = placementIssue(state, p, command.kind); if (problem) { announce(state, problem); return; }
     const def = buildingDefinition(command.kind); if (!canAfford(state, def.cost)) { announce(state, 'Gather the missing materials before building.'); return; }
     pay(state, def.cost); state.buildings.push({ id: `building-${state.nextId++}`, kind: command.kind, ...buildPosition(p) });
-    announce(state, `${def.name} built. Walk to the front door and press E to enter.`); return;
+    announce(state, `${def.name} built.`); return;
   }
   if (command.type === 'plant') {
     if (p.location || !p.tools.includes('hoe')) { announce(state, 'Take a garden hoe outside to plant.'); return; }
@@ -148,17 +148,17 @@ export function sandboxAction(state: GameState, id: PlayerId, command: SandboxCo
     const x = Math.round((p.x + Math.sin(p.angle) * 2.5) / 2) * 2, z = Math.round((p.z + Math.cos(p.angle) * 2.5) / 2) * 2;
     if (!insideWorld(x, z, 2) || !['meadow', 'forest'].includes(biomeAt(x, z, state.seed)) || isWater(x, z, state.seed) ||
       state.buildings.some(b => buildingContains(b, x, z, 2)) || state.crops.some(c => distance(c, { x, z }) < 1.9) ||
-      generateWorld(state.seed).items.some(n => distance(n, { x, z }) < 1.6)) { announce(state, 'Find open meadow or forest soil. Leave room around crops and resources.'); return; }
-    if (!canAfford(state, { seed: 1 })) { announce(state, 'Gather wild seeds in meadows or forests. They always grow back.'); return; }
+      generateWorld(state.seed).items.some(n => distance(n, { x, z }) < 1.6)) { announce(state, 'Find clear meadow or forest soil.'); return; }
+    if (!canAfford(state, { seed: 1 })) { announce(state, 'Gather wild seeds in the meadow.'); return; }
     pay(state, { seed: 1 }); state.crops.push({ id: `crop-${state.nextId++}`, kind: command.crop, x, z, plantedAt: state.time });
-    announce(state, `${CROPS[command.crop].name} planted. Ready in ${CROP_SECONDS}s; rain and river mist do the watering.`); return;
+    announce(state, `${CROPS[command.crop].name} planted.`); return;
   }
   if (command.type === 'dismantle') {
     if (p.location) { announce(state, 'Go outside to dismantle a building.'); return; }
     const b = state.buildings.find(b => distance(p, entrance(b)) <= INTERACT_RADIUS); if (!b) { announce(state, 'Stand by the front door of the building to dismantle.'); return; }
     if (Object.values(state.players).some(other => other?.location?.buildingId === b.id)) { announce(state, 'Someone is inside. Both players must leave before dismantling.'); return; }
     grant(state, buildingDefinition(b.kind).cost); state.buildings = state.buildings.filter(other => other.id !== b.id);
-    announce(state, 'Building dismantled. All construction materials returned to the shared bag.');
+    announce(state, 'Building removed. Materials returned.');
   }
 }
 /** Host-owned simulation; no DOM, rendering, transport or client-supplied positions. */
@@ -192,7 +192,7 @@ export class GameEngine {
     }
     for (const id of ['p1', 'p2'] as const) {
       const p = this.state.players[id]; if (!p) continue;
-      if (p.fishing && this.state.time > p.fishing.endsAt) { p.fishing = null; announce(this.state, 'The fish slipped away. Cast again whenever you like.'); }
+      if (p.fishing && this.state.time > p.fishing.endsAt) { p.fishing = null; announce(this.state, 'The fish slipped away.'); }
       const input = this.inputs[id]; movePlayer(p, this.state.time - input.at > 0.4 ? { x: 0, z: 0 } : input.value, dt, this.state);
     }
   }

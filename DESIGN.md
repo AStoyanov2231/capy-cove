@@ -2,12 +2,12 @@
 name: Capy Cove
 description: A sunlit low-poly sandbox for two friends
 colors:
-  leaf: "#305e43"
-  ink: "#264d3b"
-  muted: "#52674a"
-  paper: "#fff9e9"
-  lagoon: "#9bcab9"
-  yellow: "#f3d78a"
+  leaf: "#32665b"
+  ink: "#284e43"
+  muted: "#52694e"
+  paper: "#fff5db"
+  lagoon: "#b4d9cc"
+  yellow: "#e8bf6d"
   border: "#d9ddc3"
 typography:
   display:
@@ -54,7 +54,8 @@ The approved cozy low-poly style remains the visual authority, extended into a s
 **Key Characteristics:**
 - Living procedural scenery, not a static hero image.
 - Leaf-green controls, pale paper panels, turquoise water, and honey-colored capybaras.
-- Simple, rounded controls that remain distinct from the angular 3D world.
+- Sculpted low-poly pictograms, ivory menu frames and a teal wooden hotbar.
+- Rounded characters, layered foliage and soft lighting over faceted terrain.
 
 ## Colors
 
@@ -68,32 +69,36 @@ Fredoka is the self-hosted display voice at medium weight. Nunito Sans is the se
 
 ## Layout
 
-Desktop setup occupies a paper-backed left column over a full-bleed world shifted right by the camera. At 760px and below, setup scrolls and the character form becomes a paper panel below the introduction. Gameplay keeps the viewport fixed: surroundings upper left, map upper right, sandbox tools and a compact material row below. Craft, Build, Farm and Bag open one nonmodal scrolling drawer. Choosing a blueprint closes the drawer and reveals a foundation preview with a separate confirmation control.
+Desktop setup occupies a paper-backed left column over a full-bleed world shifted right by the camera. At 760px and below, setup scrolls and the character form becomes a paper panel below the introduction. Gameplay keeps the viewport fixed: a compact place name and friend indicator upper left, expandable map upper right, four icon actions centered below, and four quick resource counts at the edge.
 
-Touch devices get a directional pad. Desktop controls use camera-relative WASD/arrows. Native dialogs handle protected-focus tasks: help, the journal, connection failures, completion, and leaving a live session.
+Craft, Build, Farm and Bag open one nonmodal menu with an icon catalog and a single selected-item detail pane. On phones the catalog and detail stack in a scrollable body, while secondary HUD elements hide. Choosing a blueprint closes the menu and reveals a foundation preview with explicit confirmation.
+
+Touch devices get a directional pad. Desktop controls use camera-relative WASD/arrows. Hotbar names and shortcuts appear on hover or keyboard focus; nearby interactions show their action only when relevant. Full controls live in How to play. Native dialogs handle game options, help, connection failures and leaving a session.
 
 ## Elevation & Depth
 
-The world uses real mesh geometry, faceted vertex-colored terrain, directional shadows, hemisphere lighting and a higher-angle orthographic camera. Biomes use meadow, forest, sand, wetland, stone and snow palettes. Architecture has pitched roofs, framing, windows, flower boxes and themed details. Interiors use plank floors, rugs, cutaway walls, door frames, warm local light and modeled furniture with matching collision footprints. HUD panels use one shared ambient shadow (`0 12px 36px #2f51351a`), without an additional outline.
+The world uses real mesh geometry and a higher-angle orthographic camera. Blended biome vertex colors, slope shading and drifting cloud shade soften faceted terrain. Warm directional light, cool fill, hemisphere light and environment reflections shape rounded characters, fuller tree canopies, instanced grass and flowers. Animated river ripples and height-following cascades give water motion. Buildings use pitched shingle roofs, beveled framing, masonry courses, glowing windows and themed details. Interiors use plank floors, rugs, cutaway walls, door frames, warm local light and modeled furniture with matching collision footprints.
 
-Entering a building switches only the local camera to a centered room view against a dark green surround, with a short fade. Side doors connect rooms. Remote players are visible only in the same outdoor or room instance. Reduced-motion preferences disable ambient water, windmill, bite and transition effects. Camera movement and player interpolation use time-based exponential smoothing.
+The desktop finishing pipeline adds contact occlusion, restrained bloom, color grading and antialiasing. Coarse-pointer devices omit occlusion. Sustained slow frames disable postprocessing and lower resolution and shadow size. Gather feedback uses a bounded instanced particle pool. These are quality measures, not a verified frame-rate guarantee.
+
+Entering a building switches only the local camera to a centered room view against a dark green surround, with a short fade. Side doors connect rooms. Remote players are visible only in the same outdoor or room instance. Reduced-motion preferences disable ambient animation, gather particles, bite animation and room fades. Camera movement and player interpolation use time-based exponential smoothing.
 
 ## Shapes
 
-Controls have modest rounded corners. HUD panels are slightly softer, dialogs softer again. Circular icon buttons and small player-name pills are the exceptions. The 3D art uses boxes, low-sided cylinders, and icosahedra; capybaras have broad barrel bodies, short legs, small ears, and flat muzzles.
+Controls have modest rounded corners; sculpted menu borders use reusable nine-slice artwork, not text baked into images. Circular utility controls and small player-name pills remain quiet. The 3D art combines beveled boxes, low-sided cylinders and rounded low-poly foliage; capybaras have capsule-shaped barrel bodies, short legs, small ears, softened muzzles and eye glints.
 
 ## Components
 
 - **Primary action:** leaf background, light text, clear action wording, optional trailing arrow. Disabled states retain readable text and cannot be activated.
 - **Character selection:** labeled segmented buttons, outlined fur swatches, and accessory buttons. All selected options expose `aria-pressed`.
-- **Surroundings:** current biome or room name, relevant gathering/door guidance, and the friend’s independent location. No quest or completion UI.
-- **Shared bag:** synchronized materials, with four quick counts and the full material list in Bag. Tools are personal and explicitly labeled.
-- **Recipes:** flat, separated rows with names, useful effects, material costs, prerequisites and owned/unavailable states. No nested cards.
+- **Surroundings:** current biome or room name and a compact friend indicator. Friend location is available through its accessible label and tooltip. No coordinates, idle guidance, quests or completion UI.
+- **Shared bag:** synchronized materials, four quick icon counts, and a full icon catalog in Bag. The selected resource reveals its name, quantity and source. Tools are personal.
+- **Recipes:** an icon grid and one selected detail pane with a name, short effect, pictorial material costs and explicit prerequisites. Shortages use counts and a minus mark, not color alone. Owned tools receive a checkmark.
 - **Building preview:** a green or terracotta foundation, plus a textual placement reason and host-validated confirmation. Color is never the only validity signal.
 - **Map:** cached seed-derived biome geography outdoors; footprint-aligned furniture and doorways indoors. Only players in the same interior instance appear on its room map.
-- **Interaction prompt:** action text is computed from authoritative proximity. An unavailable prompt is disabled, not a misleading clickable action.
+- **Interaction prompt:** action text is computed from authoritative proximity. Hide the prompt when idle or browsing menus; show the relevant key only when actionable. Resource renewal times never appear on the HUD. Waiting for a fish disables the action until the bite.
 - **Dialogs:** native modal focus, Escape dismissal, a visible close button, and clear primary/secondary choices.
-- **Icons:** selected Lucide line icons, with small authored geometric capybara, orange, and stone marks. No emoji icon substitutions.
+- **Icons:** 48 generated transparent WebP pictograms cover resources, tools, actions and all 20 buildings. Two generated frames provide the menu and hotbar surfaces. Shipping assets live in `public/art/`; complete prompts and provenance live in `docs/art-source/PROMPTS.md`. Icons are decorative inside semantically labeled HTML controls. Lucide remains for small utility actions. No emoji substitutions.
 
 ## Do's and Don'ts
 

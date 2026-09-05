@@ -1,15 +1,16 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import type { Profile } from '../game/schema';
 
-export const FUR_COLORS = { honey: '#b88958', cocoa: '#805b42', sand: '#d9b985' };
+export const FUR_COLORS = { honey: '#c49259', cocoa: '#916347', sand: '#dfbd82' };
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 export function material(color: THREE.ColorRepresentation): THREE.MeshStandardMaterial {
   const key = new THREE.Color(color).getHexString();
-  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true }));
+  if (!materials.has(key)) materials.set(key, new THREE.MeshStandardMaterial({ color, roughness: 0.84, flatShading: false }));
   return materials.get(key)!;
 }
-const box = new THREE.BoxGeometry(1, 1, 1);
-const sphere = new THREE.IcosahedronGeometry(1, 0);
+const box = new RoundedBoxGeometry(1, 1, 1, 2, 0.08);
+const sphere = new THREE.IcosahedronGeometry(1, 1);
 export function block(parent: THREE.Object3D, color: THREE.ColorRepresentation, position: [number, number, number], scale: [number, number, number], round = false): THREE.Mesh {
   const mesh = new THREE.Mesh(round ? sphere : box, material(color));
   mesh.position.set(...position);
@@ -19,7 +20,7 @@ export function block(parent: THREE.Object3D, color: THREE.ColorRepresentation, 
   parent.add(mesh);
   return mesh;
 }
-export interface CapyModel { group: THREE.Group; legs: THREE.Mesh[]; head: THREE.Group; heart: THREE.Group }
+export interface CapyModel { group: THREE.Group; legs: THREE.Mesh[]; head: THREE.Group; heart: THREE.Group; eyes: THREE.Mesh[]; body: THREE.Mesh }
 export function createCapybara(profile: Profile): CapyModel {
   const group = new THREE.Group();
   const fur = FUR_COLORS[profile.fur];
@@ -27,9 +28,10 @@ export function createCapybara(profile: Profile): CapyModel {
   const dark = new THREE.Color(fur).multiplyScalar(0.75);
   // Broad barrel body, flat muzzle, small ears and squat legs: capybara, not bear.
   const body = block(group, fur, [0, 0.82, -0.12], [1.03, 0.86, 1.65]);
-  body.geometry = new THREE.CylinderGeometry(0.64, 0.64, 1.65, 6);
+  body.geometry = new THREE.CapsuleGeometry(0.57, 0.7, 4, 12); body.geometry.userData.owned = true;
   body.rotation.x = Math.PI / 2;
-  body.scale.set(1, 1, 0.94);
+  body.scale.set(1.03, 1.05, 0.96);
+  const eyes: THREE.Mesh[] = [];
   const legs = [-0.35, 0.35].flatMap(x => [-0.66, 0.45].map(z => block(group, dark, [x, 0.23, z], [0.29, 0.42, 0.34])));
   const head = new THREE.Group();
   head.position.set(0, 1.05, 0.55);
@@ -40,8 +42,10 @@ export function createCapybara(profile: Profile): CapyModel {
     const ear = block(head, fur, [side * 0.38, 0.47, -0.2], [0.24, 0.3, 0.23], true);
     ear.rotation.z = side * -0.2;
     block(head, '#bd8972', [side * 0.38, 0.48, -0.07], [0.11, 0.14, 0.05]);
-    block(head, '#302d25', [side * 0.478, 0.15, 0.25], [0.055, 0.11, 0.12]);
-    block(head, '#302d25', [side * 0.28, -0.025, 0.772], [0.105, 0.065, 0.025]);
+    const eye = block(head, '#302d25', [side * 0.469, 0.15, 0.3], [0.065, 0.095, 0.085], true); eyes.push(eye);
+    block(head, '#fff4d7', [side * 0.523, 0.185, 0.325], [0.014, 0.026, 0.022], true);
+    block(head, '#6f5038', [side * 0.28, -0.025, 0.772], [0.09, 0.065, 0.04], true);
+    block(head, '#d6a179', [side * 0.445, -0.12, 0.48], [0.035, 0.07, 0.11], true);
     if (profile.gender === 'female') {
       const lash = block(head, '#302d25', [side * 0.482, 0.21, 0.27], [0.055, 0.035, 0.17]);
       lash.rotation.x = 0.2;
@@ -67,11 +71,14 @@ export function createCapybara(profile: Profile): CapyModel {
   heart.position.y = 2.4;
   heart.visible = false;
   group.add(heart);
-  return { group, legs, head, heart };
+  return { group, legs, head, heart, eyes, body };
 }
 export function animateCapybara(model: CapyModel, time: number, moving: boolean, swimming: boolean, emote: boolean): void {
   model.legs.forEach((leg, i) => { leg.rotation.x = moving ? Math.sin(time * 12 + i * 2.3) * 0.45 : 0; });
-  model.head.rotation.z = moving ? Math.sin(time * 6) * 0.025 : Math.sin(time * 1.4) * 0.025;
+  model.head.rotation.z = moving ? Math.sin(time * 6) * 0.025 : Math.sin(time * 1.4) * 0.018;
+  model.body.scale.x = 1.03 + Math.sin(time * 1.8) * 0.009;
+  const blink = time % 5.2;
+  model.eyes.forEach(eye => { eye.scale.y = 0.095 * (blink > 4.95 ? Math.max(0.12, Math.abs(blink - 5.075) / 0.125) : 1); });
   model.group.position.y = swimming ? -0.4 + Math.sin(time * 3) * 0.06 : moving ? Math.abs(Math.sin(time * 12)) * 0.065 : 0;
   model.heart.visible = emote;
   model.heart.position.y = 2.35 + Math.sin(time * 3) * 0.14;
